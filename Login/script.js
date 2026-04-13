@@ -1,0 +1,342 @@
+const USERS_KEY = "attendance360Users";
+const SESSION_KEY = "attendance360CurrentUser";
+const AUTH_PREFILL_KEY = "attendance360AuthPrefill";
+
+const roleButtons = document.querySelectorAll(".role-btn");
+const toggleButtons = document.querySelectorAll(".toggle-btn");
+const switchButtons = document.querySelectorAll("[data-switch]");
+
+const loginForm = document.getElementById("loginForm");
+const registerForm = document.getElementById("registerForm");
+const authMessage = document.getElementById("authMessage");
+const selectedRoleLabel = document.getElementById("selectedRoleLabel");
+
+const loginTitle = document.getElementById("loginTitle");
+const loginSubtitle = document.getElementById("loginSubtitle");
+const loginIdentityLabel = document.getElementById("loginIdentityLabel");
+const loginIdentity = document.getElementById("loginIdentity");
+const loginPassword = document.getElementById("loginPassword");
+const loginSubmit = document.getElementById("loginSubmit");
+const forgotPasswordToggle = document.getElementById("forgotPasswordToggle");
+const forgotPasswordPanel = document.getElementById("forgotPasswordPanel");
+const forgotPasswordHelp = document.getElementById("forgotPasswordHelp");
+const forgotNewPassword = document.getElementById("forgotNewPassword");
+const forgotConfirmPassword = document.getElementById("forgotConfirmPassword");
+const forgotPasswordSubmit = document.getElementById("forgotPasswordSubmit");
+const forgotPasswordCancel = document.getElementById("forgotPasswordCancel");
+
+const registerTitle = document.getElementById("registerTitle");
+const registerSubtitle = document.getElementById("registerSubtitle");
+const registerSubmit = document.getElementById("registerSubmit");
+const registerInputs = [
+  document.getElementById("firstName"),
+  document.getElementById("lastName"),
+  document.getElementById("registerEmail"),
+  document.getElementById("registerUsername"),
+  document.getElementById("registerPhone"),
+  document.getElementById("registerPassword"),
+  document.getElementById("confirmPassword")
+];
+
+const roleConfig = {
+  teacher: {
+    label: "Teacher",
+    idPrefix: "TCH",
+    destination: "../Teacher/index.html"
+  },
+  student: {
+    label: "Student",
+    idPrefix: "STD",
+    destination: "../Student/index.html"
+  }
+};
+
+let selectedRole = "";
+let currentMode = "login";
+let forgotPasswordOpen = false;
+
+function setMessage(text, type = "") {
+  authMessage.textContent = text;
+  authMessage.className = `message${type ? ` ${type}` : ""}`;
+}
+
+function getUsers() {
+  return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
+}
+
+function saveUsers(users) {
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+function setForgotPasswordOpen(isOpen) {
+  forgotPasswordOpen = isOpen;
+  forgotPasswordPanel.classList.toggle("hidden", !isOpen);
+  if (!isOpen) {
+    forgotNewPassword.value = "";
+    forgotConfirmPassword.value = "";
+  }
+}
+
+function updateForgotPasswordCopy(role) {
+  const config = roleConfig[role];
+  if (!config || !forgotPasswordHelp) return;
+  forgotPasswordHelp.textContent = `Enter your ${config.label.toLowerCase()} username, ${config.label.toLowerCase()} ID, or email above, then set a new password.`;
+}
+
+function setRole(role) {
+  selectedRole = role;
+  const config = roleConfig[role];
+
+  roleButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.role === role);
+  });
+
+  selectedRoleLabel.textContent = `${config.label} selected`;
+  loginTitle.textContent = `${config.label} Login`;
+  loginSubtitle.textContent = `Enter your username, ${config.label.toLowerCase()} ID, or email and password to continue.`;
+  loginIdentityLabel.textContent = `Username, ${config.label} ID or Email`;
+  loginIdentity.placeholder = `Enter username, ${config.idPrefix.toLowerCase()} ID, or email`;
+  loginIdentity.disabled = false;
+  loginPassword.disabled = false;
+  loginSubmit.disabled = false;
+  forgotPasswordToggle.classList.remove("hidden");
+  forgotNewPassword.disabled = false;
+  forgotConfirmPassword.disabled = false;
+  forgotPasswordSubmit.disabled = false;
+  updateForgotPasswordCopy(role);
+
+  registerTitle.textContent = `Register as ${config.label}`;
+  registerSubtitle.textContent = `Fill in your details to create a new ${config.label.toLowerCase()} account.`;
+  registerInputs.forEach((input) => {
+    input.disabled = false;
+  });
+  registerSubmit.disabled = false;
+
+  setMessage(`Ready for ${config.label.toLowerCase()} ${currentMode}.`);
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  toggleButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === mode);
+  });
+  loginForm.classList.toggle("active", mode === "login");
+  registerForm.classList.toggle("active", mode === "register");
+  if (mode !== "login") setForgotPasswordOpen(false);
+
+  if (!selectedRole) {
+    setMessage("Choose Teacher or Student first.");
+    return;
+  }
+
+  setMessage(`Continue with ${roleConfig[selectedRole].label.toLowerCase()} ${mode}.`);
+}
+
+function generateUserId(role) {
+  const prefix = roleConfig[role].idPrefix;
+  const stamp = Date.now().toString().slice(-6);
+  return `${prefix}${stamp}`;
+}
+
+function persistSession(user) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+function goToPortal(role) {
+  window.location.href = roleConfig[role].destination;
+}
+
+roleButtons.forEach((button) => {
+  button.addEventListener("click", () => setRole(button.dataset.role));
+});
+
+toggleButtons.forEach((button) => {
+  button.addEventListener("click", () => setMode(button.dataset.mode));
+});
+
+switchButtons.forEach((button) => {
+  button.addEventListener("click", () => setMode(button.dataset.switch));
+});
+
+if (forgotPasswordToggle) {
+  forgotPasswordToggle.addEventListener("click", () => {
+    if (!selectedRole) {
+      setMessage("Choose Teacher or Student first.", "error");
+      return;
+    }
+    setForgotPasswordOpen(!forgotPasswordOpen);
+    if (forgotPasswordOpen) {
+      updateForgotPasswordCopy(selectedRole);
+      setMessage(`Enter your ${roleConfig[selectedRole].label.toLowerCase()} username, email, or ID and choose a new password.`);
+    } else {
+      setMessage(`Continue with ${roleConfig[selectedRole].label.toLowerCase()} login.`);
+    }
+  });
+}
+
+if (forgotPasswordCancel) {
+  forgotPasswordCancel.addEventListener("click", () => {
+    setForgotPasswordOpen(false);
+    if (selectedRole) {
+      setMessage(`Continue with ${roleConfig[selectedRole].label.toLowerCase()} login.`);
+    }
+  });
+}
+
+if (forgotPasswordSubmit) {
+  forgotPasswordSubmit.addEventListener("click", () => {
+    if (!selectedRole) {
+      setMessage("Choose Teacher or Student first.", "error");
+      return;
+    }
+
+    const identity = loginIdentity.value.trim().toLowerCase();
+    const newPassword = forgotNewPassword.value;
+    const confirmNewPassword = forgotConfirmPassword.value;
+
+    if (!identity || !newPassword || !confirmNewPassword) {
+      setMessage("Enter your identity, new password, and confirm password.", "error");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setMessage("New password and confirm password do not match.", "error");
+      return;
+    }
+
+    const users = getUsers();
+    const userIndex = users.findIndex((entry) => {
+      const email = (entry.email || "").toLowerCase();
+      const userId = (entry.userId || "").toLowerCase();
+      const username = (entry.username || "").toLowerCase();
+      return entry.role === selectedRole && (email === identity || userId === identity || username === identity);
+    });
+
+    if (userIndex === -1) {
+      setMessage(`${roleConfig[selectedRole].label} account not found for that username, email, or ID.`, "error");
+      return;
+    }
+
+    users[userIndex].password = newPassword;
+    saveUsers(users);
+    loginPassword.value = "";
+    setForgotPasswordOpen(false);
+    setMessage("Password changed successfully. You can now log in with the new password.", "success");
+  });
+}
+
+loginForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  if (!selectedRole) {
+    setMessage("Choose Teacher or Student before logging in.", "error");
+    return;
+  }
+
+  const identity = loginIdentity.value.trim().toLowerCase();
+  const password = loginPassword.value;
+  const user = getUsers().find((entry) => {
+    const email = (entry.email || "").toLowerCase();
+    const userId = (entry.userId || "").toLowerCase();
+    const username = (entry.username || "").toLowerCase();
+    return entry.role === selectedRole && (email === identity || userId === identity || username === identity) && entry.password === password;
+  });
+
+  if (!user) {
+    setMessage("Account not found or password is incorrect.", "error");
+    return;
+  }
+
+  persistSession(user);
+  setMessage(`Login successful. Redirecting to ${roleConfig[selectedRole].label} portal...`, "success");
+  setTimeout(() => goToPortal(selectedRole), 700);
+});
+
+registerForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  if (!selectedRole) {
+    setMessage("Choose Teacher or Student before registering.", "error");
+    return;
+  }
+
+  const firstName = document.getElementById("firstName").value.trim();
+  const lastName = document.getElementById("lastName").value.trim();
+  const email = document.getElementById("registerEmail").value.trim();
+  const username = document.getElementById("registerUsername").value.trim();
+  const phone = document.getElementById("registerPhone").value.trim();
+  const password = document.getElementById("registerPassword").value;
+  const confirmPassword = document.getElementById("confirmPassword").value;
+
+  if (!firstName || !lastName || !email || !username || !phone || !password || !confirmPassword) {
+    setMessage("Fill in all registration fields.", "error");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    setMessage("Password and confirm password do not match.", "error");
+    return;
+  }
+
+  const users = getUsers();
+  const emailExists = users.some((entry) => (entry.email || "").toLowerCase() === email.toLowerCase());
+  if (emailExists) {
+    setMessage("An account with this email already exists.", "error");
+    return;
+  }
+
+  const usernameExists = users.some((entry) => (entry.username || "").toLowerCase() === username.toLowerCase());
+  if (usernameExists) {
+    setMessage("This username is already taken.", "error");
+    return;
+  }
+
+  const user = {
+    role: selectedRole,
+    firstName,
+    lastName,
+    email,
+    username,
+    phone,
+    password,
+    userId: generateUserId(selectedRole)
+  };
+
+  users.push(user);
+  saveUsers(users);
+  clearSession();
+  registerForm.reset();
+  setMode("login");
+  loginIdentity.value = username;
+  loginPassword.value = "";
+
+  setMessage(`Registration successful. Your ${roleConfig[selectedRole].label.toLowerCase()} ID is ${user.userId}. Please log in with your username or email.`, "success");
+});
+
+function applyPrefillFromStorage() {
+  try {
+    const raw = localStorage.getItem(AUTH_PREFILL_KEY);
+    if (!raw) {
+      setMessage("Choose Teacher or Student first.");
+      return;
+    }
+    const prefill = JSON.parse(raw);
+    localStorage.removeItem(AUTH_PREFILL_KEY);
+    if (prefill.role && roleConfig[prefill.role]) setRole(prefill.role);
+    if (prefill.mode === "register" || prefill.mode === "login") setMode(prefill.mode);
+    if (prefill.forgot && prefill.role && forgotPasswordToggle) {
+      setForgotPasswordOpen(true);
+      updateForgotPasswordCopy(prefill.role);
+      setMessage(`Enter your ${roleConfig[prefill.role].label.toLowerCase()} username, email, or ID and choose a new password.`);
+    }
+  } catch (error) {
+    console.warn("Failed to apply auth prefill", error);
+    setMessage("Choose Teacher or Student first.");
+  }
+}
+
+applyPrefillFromStorage();

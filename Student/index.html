@@ -1,0 +1,240 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance360 · Student</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="dot"></span>Attendance360 · Student</div>
+    <div class="header-actions">
+      <nav>
+        <a data-target="home" class="active">Home</a>
+        <a data-target="classes">My Classes</a>
+        <a data-target="attendance">Attendance</a>
+        <a data-target="quizzes">Quizzes</a>
+        <a data-target="files">Files</a>
+        <a data-target="calendar">Academic Calendar</a>
+      </nav>
+      <div class="notification-shell">
+        <button id="notificationToggle" class="notification-btn" type="button" aria-haspopup="true" aria-expanded="false">
+          <span class="notification-icon">🔔</span>
+          <span class="notification-badge" id="notificationBadge">0</span>
+        </button>
+        <div id="notificationPanel" class="notification-panel hidden">
+          <div class="section-head wrap">
+            <h3>Notifications</h3>
+            <span class="chip" id="notificationPanelStatus">0 unread</span>
+          </div>
+          <div id="notificationList" class="list compact-list"></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="section active" id="home">
+      <div class="hero card" style="grid-template-columns: 1.2fr 0.8fr;">
+        <div>
+          <div class="pill" id="studentRolePill">Logged in as Student</div>
+          <h1 id="studentWelcome">Welcome back, Student!</h1>
+          <p id="studentIntro">Pick where you want to go: classes, attendance, quizzes, or files. Each opens in its own focused view.</p>
+          <div class="cta-row">
+            <button class="btn secondary" data-target="classes">My Classes</button>
+            <button class="btn secondary" data-target="attendance">Attendance</button>
+            <button class="btn secondary" data-target="quizzes">Quizzes</button>
+            <button class="btn secondary" data-target="files">Files</button>
+          </div>
+          <div class="status-row">
+            <span class="pill"><span class="status-dot"></span> Today: Present</span>
+            <span class="pill">Streak: 8 days</span>
+          </div>
+          <div class="list">
+            <div class="item column">
+              <strong id="studentNameCard">Student Name</strong>
+              <p id="studentCredentials">Student ID · Email</p>
+              <p id="studentPhone" class="muted">Phone</p>
+            </div>
+          </div>
+        </div>
+        <div class="card translucent">
+          <h2>Quick Jump</h2>
+          <div class="grid-3">
+            <div class="item inline">
+              <div class="icon-bubble">C</div>
+              <div>
+                <strong>Classes</strong>
+                <p>Open your active subjects</p>
+                <button class="btn secondary" data-target="classes">Open</button>
+              </div>
+            </div>
+            <div class="item inline">
+              <div class="icon-bubble alt">A</div>
+              <div>
+                <strong>Attendance</strong>
+                <p>Track day-by-day</p>
+                <button class="btn secondary" data-target="attendance">Open</button>
+              </div>
+            </div>
+            <div class="item inline">
+              <div class="icon-bubble">F</div>
+              <div>
+                <strong>Files</strong>
+                <p>Class files and personal updates</p>
+                <button class="btn secondary" data-target="files">Open</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section card" id="classes">
+      <div class="section-head">
+        <h2>My Classes</h2>
+        <span class="chip" id="studentClassCount">0 active</span>
+      </div>
+      <div class="list" id="studentClassesList"></div>
+    </section>
+
+    <section class="section card" id="attendance">
+      <div class="section-head wrap">
+        <h2>Attendance</h2>
+        <div class="month-nav">
+          <button class="nav-btn" id="prevMonth" aria-label="Previous month">&lt;</button>
+          <span class="chip" id="monthLabel">Month view</span>
+          <button class="nav-btn" id="nextMonth" aria-label="Next month">&gt;</button>
+        </div>
+      </div>
+      <div class="grid-3 attendance-summary-grid">
+        <div class="item column">
+          <strong id="attendanceOverallPercent">0%</strong>
+          <p>Overall attendance</p>
+        </div>
+        <div class="item column">
+          <strong id="attendancePresentDays">0</strong>
+          <p>Present days</p>
+        </div>
+        <div class="item column">
+          <strong id="attendanceAbsentDays">0</strong>
+          <p>Absent days</p>
+        </div>
+      </div>
+      <p>Green = present, Red = absent, Blue = no saved class record.</p>
+      <div id="calendarDays" class="calendar"></div>
+      <div class="legend">
+        <span><span class="legend-swatch present"></span> Present</span>
+        <span><span class="legend-swatch absent"></span> Absent</span>
+        <span><span class="legend-swatch neutral"></span> No record</span>
+      </div>
+      <div class="attendance-day-log">
+        <div class="section-head wrap">
+          <h3>Detailed Attendance Log</h3>
+          <span class="chip" id="attendanceLogCount">0 entries</span>
+        </div>
+        <div id="attendanceLogList" class="list"></div>
+      </div>
+    </section>
+
+    <section class="section card" id="quizzes">
+      <div class="section-head">
+        <h2>Quizzes</h2>
+        <span class="chip">Prep & schedule</span>
+      </div>
+      <div class="quiz-grid">
+        <div class="quiz-card">
+          <div class="quiz-top">
+            <div class="icon-bubble alt">W</div>
+            <div><strong>Web Tech</strong><p>Apr 18 · Project Demo</p></div>
+          </div>
+          <span class="badge">Team</span>
+          <p>Upload repo link + slides.</p>
+        </div>
+        <div class="quiz-card">
+          <div class="quiz-top">
+            <div class="icon-bubble">M</div>
+            <div><strong>Machine Learning</strong><p>Apr 12 · MCQ</p></div>
+          </div>
+          <span class="badge soft">Practice</span>
+          <p>Topics: regression, SVM, bias/variance.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section card" id="files">
+      <div class="section-head wrap">
+        <h2>Files & Teacher Connect</h2>
+        <span class="chip" id="studentPersonalStatus">Auto-sync</span>
+      </div>
+
+      <div class="files-stack">
+        <div>
+          <h3>Shared Files</h3>
+          <div class="grid-2" id="studentFileList"></div>
+        </div>
+
+        <div>
+          <div class="section-head wrap">
+            <h3>Personal Updates</h3>
+            <span class="chip" id="personalUpdateCount">0 items</span>
+          </div>
+          <div id="studentPersonalUpdates" class="list"></div>
+        </div>
+
+        <div>
+          <div class="section-head wrap">
+            <h3>Feedback Forms</h3>
+            <span class="chip" id="feedbackFormCount">0 forms</span>
+          </div>
+          <div id="studentFeedbackForms" class="list"></div>
+        </div>
+
+        <div>
+          <div class="section-head wrap">
+            <h3>Chat With Teacher</h3>
+            <span class="chip" id="studentConversationStatus">No chat yet</span>
+          </div>
+          <div id="studentChatThread" class="chat-thread"></div>
+          <label for="studentReplyMessage">Reply to teacher</label>
+          <textarea id="studentReplyMessage" placeholder="Type your reply here"></textarea>
+          <button id="sendStudentReply" class="btn" type="button">Send Reply</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section card" id="calendar">
+      <div class="section-head">
+        <h2>Academic Calendar</h2>
+        <span class="chip">Jan-Jun 2026 (Even Sem)</span>
+      </div>
+      <div class="list">
+        <div class="item column"><strong>Online Semester Registration</strong><p>5 Jan 2026</p></div>
+        <div class="item column"><strong>Teaching Starts</strong><p>8 Jan 2026</p></div>
+        <div class="item column"><strong>Minor-I (Theory Courses)</strong><p>16-20 Feb 2026</p></div>
+        <div class="item column"><strong>Minor-II (Theory Courses)</strong><p>24-28 Mar 2026</p></div>
+        <div class="item column"><strong>Semester Proficiency Assessment</strong><p>1-2 Apr 2026</p></div>
+        <div class="item column"><strong>Teaching Ends</strong><p>1 May 2026</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>Attendance360 · Student Portal · Stay on time, stay ahead.</footer>
+
+  <div id="pdfReader" class="pdf-modal hidden">
+    <div class="pdf-modal-content">
+      <div class="pdf-modal-head">
+        <div>
+          <p class="chip">PDF Reader</p>
+          <h3 id="pdfTitle">Document</h3>
+        </div>
+        <button id="closePdfReader" class="nav-btn" aria-label="Close PDF reader">×</button>
+      </div>
+      <iframe id="pdfFrame" title="PDF reader"></iframe>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

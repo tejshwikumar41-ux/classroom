@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance360 · Teacher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="dot"></span>Attendance360 · Teacher</div>
+    <div class="header-actions">
+      <nav>
+        <a data-target="home" class="active">Home</a>
+        <a data-target="classes">Classes</a>
+        <a data-target="students">Students</a>
+        <a data-target="files">Files</a>
+        <a data-target="attendance">Attendance</a>
+        <a data-target="feedback">Feedback</a>
+      </nav>
+      <div class="notification-shell">
+        <button id="teacherNotificationToggle" class="notification-btn" type="button" aria-haspopup="true" aria-expanded="false">
+          <span class="notification-icon">🔔</span>
+          <span class="notification-badge" id="teacherNotificationBadge">0</span>
+        </button>
+        <div id="teacherNotificationPanel" class="notification-panel hidden">
+          <div class="section-head wrap">
+            <h3>Teacher Notifications</h3>
+            <span class="chip" id="teacherNotificationStatus">0 unread</span>
+          </div>
+          <div id="teacherNotificationList" class="list compact-list"></div>
+        </div>
+      </div>
+      <div class="profile-menu">
+        <button id="profileToggle" class="profile-trigger" type="button" aria-haspopup="true" aria-expanded="false">
+          <span class="profile-avatar" id="profileAvatar">T</span>
+          <span class="profile-copy">
+            <strong id="profileDisplayName">Teacher</strong>
+            <span id="profileUsername">@username</span>
+          </span>
+        </button>
+        <div id="profileDropdown" class="profile-dropdown hidden">
+          <button id="openEditProfile" class="profile-action" type="button">Edit Profile</button>
+          <button id="openTeacherPasswordPage" class="profile-action" type="button">Change Password</button>
+          <button id="logoutButton" class="profile-action danger-text" type="button">Logout</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="section active" id="home">
+      <div class="hero card">
+        <div>
+          <div class="pill" id="teacherRolePill">Control Room</div>
+          <h1 id="teacherWelcome">Guide your classes with clarity.</h1>
+          <p id="teacherIntro">Create classes, invite students, share files and quizzes, and capture attendance from one luminous dashboard.</p>
+          <div class="cta-row">
+            <button class="btn" data-target="classes">Create Class</button>
+            <button class="btn secondary" data-target="students">Add Students</button>
+            <button class="btn secondary" data-target="feedback">View Feedback</button>
+          </div>
+          <p class="muted" id="teacherSummary">Today: 3 classes · 82 students · Attendance window closes in 30 mins.</p>
+          <div class="list">
+            <div class="item column">
+              <strong id="teacherName">Teacher Name</strong>
+              <p id="teacherUsernameText">Username: username</p>
+              <p id="teacherCredentials">Teacher ID · Email</p>
+              <p id="teacherPhone" class="muted">Phone</p>
+            </div>
+          </div>
+        </div>
+        <div class="card translucent">
+          <h2>Quick Stats</h2>
+          <div class="grid-2">
+            <div class="item column">
+              <strong>Attendance</strong>
+              <p>Avg this week</p>
+              <div class="stat-lg">94%</div>
+            </div>
+            <div class="item column">
+              <strong>Assignments</strong>
+              <p>Files & quizzes shared</p>
+              <div class="stat-lg">18</div>
+            </div>
+          </div>
+          <div class="list">
+            <div class="item">
+              <div><strong>Algorithms 301</strong><p>28 / 30 present</p></div>
+              <span class="badge">Live</span>
+            </div>
+            <div class="item">
+              <div><strong>Systems 210</strong><p>Taking attendance at 2:00 PM</p></div>
+              <span class="badge soft">Upcoming</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section card" id="classes">
+      <h2>Create / Manage Classes</h2>
+      <label for="className">Class name</label>
+      <input id="className" placeholder="e.g., Algorithms 301">
+      <label for="classCode">Class code</label>
+      <input id="classCode" placeholder="ALG-301">
+      <button class="btn" style="margin-top:12px;" onclick="createClass()">Add Class</button>
+      <div class="list" id="classList"></div>
+    </section>
+
+    <section class="section card" id="students">
+      <h2>Add Students</h2>
+      <label for="studentName">Student name</label>
+      <input id="studentName" placeholder="Student full name">
+      <label for="studentId">Student ID</label>
+      <input id="studentId" placeholder="e.g., BTCS2501001">
+      <label for="studentMobile">Mobile number</label>
+      <input id="studentMobile" placeholder="10-digit mobile">
+      <label for="studentClass">Assign to class</label>
+      <select id="studentClass"></select>
+      <button class="btn" style="margin-top:12px;" onclick="addStudent()">Add Student</button>
+      <label for="studentSearch">Search students</label>
+      <input id="studentSearch" placeholder="Search by name, ID, or mobile number">
+      <div class="list" id="studentList"></div>
+    </section>
+
+    <section class="section card" id="files">
+      <h2>Share Files & Quizzes</h2>
+      <div class="grid-2">
+        <div class="column">
+          <label for="fileTitle">File or quiz title</label>
+          <input id="fileTitle" placeholder="Week 5 Slides or Quiz 2">
+          <label for="fileType">Type</label>
+          <select id="fileType">
+            <option>PDF</option>
+            <option>ZIP</option>
+            <option>Doc</option>
+            <option>Quiz Link</option>
+          </select>
+          <label for="fileClass">Share to class</label>
+          <select id="fileClass">
+            <option disabled selected value="">Select class</option>
+          </select>
+          <label for="fileUpload">Attach file from device</label>
+          <input id="fileUpload" type="file" multiple>
+          <div id="filePicked" class="muted helper-copy">No file chosen</div>
+          <label for="fileNotes">Notes / instructions</label>
+          <textarea id="fileNotes" placeholder="Add timing, links, or instructions"></textarea>
+          <button class="btn" style="margin-top:12px;" onclick="shareFile()">Share</button>
+        </div>
+        <div>
+          <h3>Shared items</h3>
+          <div class="list" id="fileList"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section card" id="attendance">
+      <div class="section-head wrap attendance-topbar">
+        <div>
+          <h2>Attendance Command Center</h2>
+          <p class="muted">Track live attendance, search student-wise records, and reopen any previous day for correction.</p>
+        </div>
+        <div class="attendance-controls">
+          <select id="attClass" onchange="renderAttendanceWorkspace()"></select>
+          <input id="attendanceDate" type="date">
+        </div>
+      </div>
+
+      <div class="attendance-hero">
+        <div class="attendance-stat-card">
+          <span class="eyebrow">Class snapshot</span>
+          <strong id="attendanceClassStats">0 students</strong>
+          <p id="attendanceCoverage">Attendance coverage will appear here.</p>
+        </div>
+        <div class="attendance-stat-card">
+          <span class="eyebrow">Search records</span>
+          <strong>Student-by-student insights</strong>
+          <p>Open any learner's full attendance timeline and overall percentage in one place.</p>
+        </div>
+        <div class="attendance-stat-card">
+          <span class="eyebrow">Editing rights</span>
+          <strong>Change any day</strong>
+          <p>Choose a date, load the saved record, modify status, and save the corrected attendance.</p>
+        </div>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr><th>Name</th><th>Student ID</th><th>Status</th><th>Mark</th></tr>
+        </thead>
+        <tbody id="attTable"></tbody>
+      </table>
+
+      <div class="chips-row">
+        <span class="chip" id="presentCount">Present: 0</span>
+        <span class="chip" id="absentCount">Absent: 0</span>
+        <span class="chip" id="loadedAttendanceRecord">Fresh sheet</span>
+        <button class="btn secondary" onclick="saveAttendance()">Save Attendance</button>
+      </div>
+
+      <div class="attendance-records-grid">
+        <div class="attendance-record-card">
+          <div class="section-head wrap">
+            <h3>Student Attendance Record</h3>
+            <span class="chip" id="attendanceSearchSummary">Search a student</span>
+          </div>
+          <label for="attendanceSearch">Search by student name or ID</label>
+          <input id="attendanceSearch" placeholder="e.g., Prithvi or BTET2501097">
+          <div id="attendanceRecordResults" class="list"></div>
+        </div>
+
+      </div>
+
+      <div class="attendance-history">
+        <div class="section-head wrap">
+          <h3>Attendance History</h3>
+          <span class="chip" id="attendanceHistoryCount">0 records</span>
+        </div>
+        <div id="attendanceHistoryList" class="list"></div>
+      </div>
+
+    </section>
+
+    <section class="section card" id="feedback">
+      <div class="section-head wrap">
+        <div>
+          <h2>Feedback Center</h2>
+          <p class="muted">Send forms to eligible students and review submitted responses without leaving the teacher dashboard.</p>
+        </div>
+        <span class="chip" id="teacherFeedbackResponseCount">0 responses</span>
+      </div>
+
+      <div class="attendance-records-grid">
+        <div class="attendance-record-card">
+          <div class="section-head wrap">
+            <h3>Feedback Form Broadcast</h3>
+            <span class="chip" id="eligibleFeedbackCount">0 eligible</span>
+          </div>
+          <label for="feedbackClass">Choose class</label>
+          <select id="feedbackClass"></select>
+          <label for="feedbackTitle">Form title</label>
+          <input id="feedbackTitle" type="text" placeholder="Class feedback form">
+          <label for="feedbackPrompt">Questions / prompt</label>
+          <textarea id="feedbackPrompt" placeholder="Ask about pace, teaching clarity, class support, assignments, and suggestions."></textarea>
+          <button id="sendFeedbackForms" class="btn" type="button">Send To Students Above 60%</button>
+        </div>
+
+        <div class="attendance-record-card">
+          <div class="section-head wrap">
+            <h3>Teacher Notifications</h3>
+            <span class="chip">Bell icon</span>
+          </div>
+          <p class="feedback-broadcast-copy">Student feedback submissions and replies also appear in the notification bell at the top of the teacher page.</p>
+          <div class="item">
+            <div>
+              <strong>Unread updates</strong>
+              <p>Use the top-right bell icon to quickly spot new feedback from students.</p>
+            </div>
+            <span class="badge">Live</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="attendance-history feedback-response-history">
+        <div class="section-head wrap">
+          <h3>Submitted Feedback Responses</h3>
+          <span class="chip">Latest student replies</span>
+        </div>
+        <div id="teacherFeedbackResponseList" class="list"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>Attendance360 · Teacher Portal · Share, quiz, and capture attendance with ease.</footer>
+
+  <div id="studentConnectModal" class="modal hidden">
+    <div class="modal-content wide-modal">
+      <div class="modal-head">
+        <div>
+          <p class="muted small">Student connect</p>
+          <h3 id="connectStudentName">Student</h3>
+          <p id="connectStudentMeta" class="muted small">Class · ID · Mobile</p>
+        </div>
+        <button id="closeStudentConnect" class="icon-btn" aria-label="Close student chat">×</button>
+      </div>
+
+      <div class="connect-grid">
+        <div class="connect-panel">
+          <div class="section-head">
+            <h4>Conversation</h4>
+            <button id="callStudentButton" class="btn secondary" type="button">Call Student</button>
+          </div>
+          <div id="teacherChatThread" class="chat-thread"></div>
+          <label for="teacherChatMessage">Send message</label>
+          <textarea id="teacherChatMessage" placeholder="Type a message for this student"></textarea>
+          <button id="sendTeacherMessage" class="btn" type="button">Send Message</button>
+        </div>
+
+        <div class="connect-panel">
+          <h4>Share Individual Update</h4>
+          <label for="personalShareTitle">Title</label>
+          <input id="personalShareTitle" type="text" placeholder="Marks update, feedback, assignment file">
+          <label for="personalShareType">Type</label>
+          <select id="personalShareType">
+            <option value="FILE">File</option>
+            <option value="MARKS">Marks</option>
+            <option value="NOTE">Note</option>
+          </select>
+          <label for="personalShareMarks">Marks</label>
+          <input id="personalShareMarks" type="number" min="0" max="100" placeholder="Enter marks if needed">
+          <label for="personalShareNotes">Notes</label>
+          <textarea id="personalShareNotes" placeholder="Write feedback or instructions"></textarea>
+          <label for="personalShareUpload">Attach file</label>
+          <input id="personalShareUpload" type="file" multiple>
+          <div id="personalSharePicked" class="muted helper-copy">No file chosen</div>
+          <button id="sharePersonalUpdate" class="btn" type="button">Share With Student</button>
+
+          <div class="section-head top-gap">
+            <h4>Shared With This Student</h4>
+            <span class="chip" id="studentResourceCount">0 items</span>
+          </div>
+          <div id="teacherStudentResources" class="list compact-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="editProfileModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="muted small">Teacher account</p>
+          <h3>Edit Profile</h3>
+          <p class="muted small">Update your visible teacher details.</p>
+        </div>
+        <button id="closeEditProfile" class="icon-btn" aria-label="Close edit profile">×</button>
+      </div>
+      <label for="editFirstName">First Name</label>
+      <input id="editFirstName" type="text" placeholder="First name">
+      <label for="editLastName">Last Name</label>
+      <input id="editLastName" type="text" placeholder="Last name">
+      <label for="editUsername">Username</label>
+      <input id="editUsername" type="text" placeholder="Username">
+      <label for="editEmail">Email</label>
+      <input id="editEmail" type="email" placeholder="Email">
+      <label for="editPhone">Phone</label>
+      <input id="editPhone" type="tel" placeholder="Phone">
+      <div class="modal-actions">
+        <button id="saveProfileButton" class="btn" type="button">Save Changes</button>
+        <button id="cancelEditProfile" class="btn secondary" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
