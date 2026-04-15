@@ -2,26 +2,7 @@ const STORAGE_KEY = "attendance360-shared-data";
 const SESSION_KEY = "attendance360CurrentUser";
 
 const defaultData = {
-  classes: [
-    {
-      name: "Machine Learning",
-      code: "ML-501",
-      students: [
-        { name: "Prithvi Singh Bhadoria", id: "BTET2501097", mobile: "9826910621" },
-        { name: "Sanskar Sinha", id: "BTAM2501058", mobile: "7000411437" }
-      ],
-      files: []
-    },
-    {
-      name: "Data Structure",
-      code: "DS-410",
-      students: [
-        { name: "Lakshya Gupta", id: "BTET2501075", mobile: "8959566333" },
-        { name: "Prithvi Raj Shinde", id: "BTTC2501052", mobile: "8982410994" }
-      ],
-      files: []
-    }
-  ],
+    classes: [],
   shared: [],
   directShares: [],
   conversations: [],
