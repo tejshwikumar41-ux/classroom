@@ -14,10 +14,13 @@
     {
       "source": "/api/(.*)",
       "destination": "/server.js"
-    },
+    }
+  ],
+  "redirects": [
     {
       "source": "/",
-      "destination": "/Login/index.html"
+      "destination": "/Login/",
+      "permanent": false
     }
   ]
 }
