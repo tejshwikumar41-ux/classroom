@@ -41,7 +41,12 @@ app.post('/api/auth/register', async (req, res) => {
     
     // Check if user exists
     const existing = await prisma.user.findFirst({
-      where: { OR: [{ email }, { username }] }
+      where: { 
+        OR: [
+          { email: { equals: email, mode: 'insensitive' } }, 
+          { username: { equals: username, mode: 'insensitive' } }
+        ] 
+      }
     });
     if (existing) return res.status(400).json({ error: 'Email or username already exists' });
     
@@ -64,7 +69,11 @@ app.post('/api/auth/login', async (req, res) => {
     const user = await prisma.user.findFirst({
       where: {
         role,
-        OR: [{ email: identity }, { username: identity }, { userId: identity }]
+        OR: [
+          { email: { equals: identity, mode: 'insensitive' } }, 
+          { username: { equals: identity, mode: 'insensitive' } }, 
+          { userId: { equals: identity, mode: 'insensitive' } }
+        ]
       }
     });
 
