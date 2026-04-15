@@ -1,4 +1,4 @@
-﻿const STORAGE_KEY = "attendance360-shared-data";
+const STORAGE_KEY = "attendance360-shared-data";
 const USERS_KEY = "attendance360Users";
 const SESSION_KEY = "attendance360CurrentUser";
 const TEACHER_NOTIFICATION_STATE_KEY = "attendance360TeacherNotificationState";
@@ -531,16 +531,32 @@ function renderClasses() {
   renderAttendanceWorkspace();
   renderFeedbackEligibility();
 }
-function createClass() {
+async function createClass() {
   const name = document.getElementById("className").value.trim();
   const code = document.getElementById("classCode").value.trim();
   if (!name || !code) return toast("Add class name and code");
-  classes.push({ name, code, students: [], files: [] });
-  persistSharedData();
-  document.getElementById("className").value = "";
-  document.getElementById("classCode").value = "";
-  renderClasses();
-  toast("Class created");
+
+  try {
+    const res = await fetch('/api/classes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('attendance360Token')
+      },
+      body: JSON.stringify({ name, code })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    classes.push({ id: data.id, name: data.name, code: data.code, students: [], files: [] });
+    // persistSharedData(); is now obsolete here
+    document.getElementById("className").value = "";
+    document.getElementById("classCode").value = "";
+    renderClasses();
+    toast("Class created");
+  } catch (error) {
+    toast(error.message || "Failed to create class");
+  }
 }
 
 function getConversation(classCode, studentId, studentName) {
@@ -601,23 +617,42 @@ function renderStudents() {
   }
 }
 
-function addStudent() {
+async function addStudent() {
   const name = document.getElementById("studentName").value.trim();
   const id = document.getElementById("studentId").value.trim();
   const mobile = document.getElementById("studentMobile").value.trim();
   const code = document.getElementById("studentClass").value;
   if (!name || !id || !mobile || !code) return toast("Add student name, ID, mobile, and pick a class");
+
   const classItem = getClassByCode(code);
-  classItem.students.push({ name, id, mobile, marks: null });
-  persistSharedData();
-  document.getElementById("studentName").value = "";
-  document.getElementById("studentId").value = "";
-  document.getElementById("studentMobile").value = "";
-  renderStudents();
-  renderAttendanceWorkspace();
-  renderAttendanceSearchResults();
-  renderFeedbackEligibility();
-  toast("Student added");
+  if (!classItem) return toast("Class not found");
+
+  try {
+    // Note: classItem must have an .id property from DB!
+    const res = await fetch(`/api/classes/${classItem.id}/students`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('attendance360Token')
+      },
+      body: JSON.stringify({ studentId: id })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    classItem.students.push({ name, id, mobile, marks: null });
+    
+    document.getElementById("studentName").value = "";
+    document.getElementById("studentId").value = "";
+    document.getElementById("studentMobile").value = "";
+    renderStudents();
+    renderAttendanceWorkspace();
+    renderAttendanceSearchResults();
+    renderFeedbackEligibility();
+    toast("Student added");
+  } catch (err) {
+    toast(err.message || "Failed to add student. Ensure ID exists.");
+  }
 }
 
 async function shareFile() {
@@ -627,33 +662,56 @@ async function shareFile() {
   const notes = document.getElementById("fileNotes").value.trim();
   const upload = document.getElementById("fileUpload");
   if (!title || !code) return toast("Add title and class");
-  const attachments = upload.files && upload.files.length
-    ? await Promise.all(Array.from(upload.files).map(readFileAsDataUrl))
-    : [];
-  const pickedNames = attachments.length ? attachments.map((file) => file.name).join(", ") : "No attachment";
+  
   const classItem = getClassByCode(code);
-  const entry = {
-    id: `file-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    title,
-    type,
-    class: classItem.name,
-    classCode: classItem.code,
-    notes,
-    files: pickedNames,
-    attachments
-  };
-  shared.unshift(entry);
-  classItem.files.push(entry);
-  classItem.students.forEach((student) => {
-    pushNotification(student.id, "New class resource", `${title} has been shared for ${classItem.name}.`, "FILE");
-  });
-  persistSharedData();
-  document.getElementById("fileTitle").value = "";
-  document.getElementById("fileNotes").value = "";
-  document.getElementById("fileUpload").value = "";
-  document.getElementById("filePicked").textContent = "No file chosen";
-  renderFiles();
-  toast("Shared successfully");
+  if (!classItem) return toast("Class not found");
+
+  try {
+    const res = await fetch('/api/files', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('attendance360Token')
+        },
+        body: JSON.stringify({
+            title,
+            type,
+            notes,
+            classId: classItem.id
+        })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    const attachments = upload.files && upload.files.length
+      ? await Promise.all(Array.from(upload.files).map(readFileAsDataUrl))
+      : [];
+    const pickedNames = attachments.length ? attachments.map((file) => file.name).join(", ") : "No attachment";
+    
+    const entry = {
+      id: data.id,
+      title,
+      type,
+      class: classItem.name,
+      classCode: classItem.code,
+      notes,
+      files: pickedNames,
+      attachments
+    };
+    
+    shared.unshift(entry);
+    classItem.files.push(entry);
+    
+    document.getElementById("fileTitle").value = "";
+    document.getElementById("fileNotes").value = "";
+    document.getElementById("fileUpload").value = "";
+    document.getElementById("filePicked").textContent = "No file chosen";
+    renderFiles();
+    toast("Shared successfully");
+  } catch (err) {
+    toast(err.message || "Failed to share file");
+  }
 }
 
 function renderFiles() {
@@ -1347,6 +1405,57 @@ if (attendanceDateInput && !attendanceDateInput.value) {
   attendanceDateInput.value = new Date().toISOString().split("T")[0];
 }
 
+async function initializeBackend() {
+  try {
+    const token = localStorage.getItem('attendance360Token');
+    if (!token) return;
+    
+    const classesRes = await fetch('/api/classes', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const classesData = await classesRes.json();
+    
+    if (classesRes.ok) {
+        const mappedClasses = classesData.map(c => ({
+            id: c.id,
+            name: c.name,
+            code: c.code,
+            students: c.students ? c.students.map(cs => ({ 
+                id: cs.student.userId, 
+                name: cs.student.firstName + ' ' + cs.student.lastName, 
+                mobile: cs.student.phone,
+                marks: null
+            })) : [],
+            files: c.files || []
+        }));
+        
+        classes.splice(0, classes.length, ...mappedClasses);
+        renderClasses();
+        renderStudents();
+    }
+    
+    const filesRes = await fetch('/api/files', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const filesData = await filesRes.json();
+    
+    if (filesRes.ok) {
+        shared.splice(0, shared.length, ...filesData.map(f => ({
+            id: f.id,
+            title: f.title,
+            type: f.type,
+            notes: f.notes,
+            class: f.class ? f.class.name : '',
+            classCode: f.class ? f.class.code : '',
+            files: f.fileUrl || "No attachment"
+        })));
+        renderFiles();
+    }
+  } catch (err) {
+    console.warn("Failed to initialize backend data", err);
+  }
+}
+
 renderClasses();
 renderStudents();
 renderFiles();
@@ -1356,4 +1465,7 @@ renderTeacherFeedbackResponses();
 renderTeacherNotifications();
 showSection("home");
 applyTeacherProfile(currentUser);
+
+// Initialize Backend to overwrite default/local state
+initializeBackend();
 

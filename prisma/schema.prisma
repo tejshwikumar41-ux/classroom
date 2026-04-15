@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int                @id @default(autoincrement())
+  role             String             // 'teacher' or 'student'
+  userId           String             @unique // e.g. TCH123456 or STD123456
+  firstName        String
+  lastName         String
+  email            String             @unique
+  username         String             @unique
+  phone            String
+  password         String             // Hashed password
+  createdAt        DateTime           @default(now())
+
+  // Teacher Relations
+  classesTaught    Class[]            @relation("TeacherClasses")
+  filesShared      File[]             @relation("TeacherFiles")
+
+  // Student Relations
+  enrolledClasses  ClassStudent[]
+  attendanceLog    AttendanceRecord[]
+
+  // Messages
+  sentMessages     Message[]          @relation("SentMessages")
+  receivedMessages Message[]          @relation("ReceivedMessages")
+}
+
+model Class {
+  id          Int            @id @default(autoincrement())
+  name        String         // e.g. Algorithms 301
+  code        String         @unique // e.g. ALG-301
+  teacherId   Int
+  teacher     User           @relation("TeacherClasses", fields: [teacherId], references: [id])
+  createdAt   DateTime       @default(now())
+  
+  students    ClassStudent[]
+  files       File[]
+  attendance  Attendance[]
+}
+
+model ClassStudent {
+  classId     Int
+  studentId   Int
+  class       Class      @relation(fields: [classId], references: [id])
+  student     User       @relation(fields: [studentId], references: [id])
+  assignedAt  DateTime   @default(now())
+
+  @@id([classId, studentId])
+}
+
+model File {
+  id          Int      @id @default(autoincrement())
+  title       String
+  type        String   // PDF, ZIP, Doc, Quiz Link
+  notes       String?
+  classId     Int?
+  teacherId   Int
+  fileUrl     String?  // Can be used if files are actually uploaded, otherwise just metadata for now.
+  createdAt   DateTime @default(now())
+
+  class       Class?   @relation(fields: [classId], references: [id])
+  teacher     User     @relation("TeacherFiles", fields: [teacherId], references: [id])
+}
+
+model Attendance {
+  id          Int                 @id @default(autoincrement())
+  date        DateTime
+  classId     Int
+  createdAt   DateTime            @default(now())
+
+  class       Class               @relation(fields: [classId], references: [id])
+  records     AttendanceRecord[]
+
+  @@unique([date, classId])
+}
+
+model AttendanceRecord {
+  id            Int        @id @default(autoincrement())
+  attendanceId  Int
+  studentId     Int
+  status        String     // 'present', 'absent'
+  
+  attendance    Attendance @relation(fields: [attendanceId], references: [id])
+  student       User       @relation(fields: [studentId], references: [id])
+
+  @@unique([attendanceId, studentId])
+}
+
+model Message {
+  id          Int      @id @default(autoincrement())
+  text        String
+  senderId    Int
+  receiverId  Int
+  createdAt   DateTime @default(now())
+
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}

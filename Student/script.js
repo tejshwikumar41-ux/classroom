@@ -674,6 +674,63 @@ window.addEventListener("storage", (event) => {
   renderAttendance();
 });
 
+async function initializeBackend() {
+  try {
+    const token = localStorage.getItem('attendance360Token');
+    if (!token) return;
+    
+    // Fetch classes (Returns classes with teacher info and potentially files)
+    const classesRes = await fetch('/api/classes', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const classesData = await classesRes.json();
+    
+    // Fetch all files
+    const filesRes = await fetch('/api/files', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const filesData = await filesRes.json();
+
+    // Fetch messages to/from this user (we'll fetch general conversation later or ignore for now)
+    
+    let sharedData = loadSharedData();
+    
+    if (classesRes.ok) {
+        sharedData.classes = classesData.map(c => ({
+            id: c.id,
+            name: c.name,
+            code: c.code,
+            students: c.students ? c.students.map(cs => ({ id: cs.student.userId, name: cs.student.firstName + " " + cs.student.lastName, mobile: cs.student.phone })) : [],
+            files: []
+        }));
+    }
+
+    if (filesRes.ok) {
+        sharedData.shared = filesData.map(f => ({
+            id: f.id,
+            title: f.title,
+            type: f.type,
+            class: f.class ? f.class.name : '',
+            classCode: f.class ? f.class.code : '',
+            notes: f.notes,
+            files: f.fileUrl || "No attachment"
+        }));
+    }
+
+    saveSharedData(sharedData);
+
+    renderStudentClasses();
+    renderStudentFiles();
+    renderPersonalUpdates();
+    renderFeedbackForms();
+    renderNotifications();
+    renderAttendance();
+
+  } catch (err) {
+    console.warn("Failed to init backend data", err);
+  }
+}
+
 renderStudentClasses();
 renderStudentFiles();
 renderPersonalUpdates();
@@ -682,3 +739,5 @@ renderNotifications();
 renderAttendance();
 showSection("home");
 applyStudentProfile(currentUser);
+
+initializeBackend();

@@ -229,7 +229,7 @@ if (forgotPasswordSubmit) {
   });
 }
 
-loginForm.addEventListener("submit", (event) => {
+loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   if (!selectedRole) {
@@ -239,24 +239,34 @@ loginForm.addEventListener("submit", (event) => {
 
   const identity = loginIdentity.value.trim().toLowerCase();
   const password = loginPassword.value;
-  const user = getUsers().find((entry) => {
-    const email = (entry.email || "").toLowerCase();
-    const userId = (entry.userId || "").toLowerCase();
-    const username = (entry.username || "").toLowerCase();
-    return entry.role === selectedRole && (email === identity || userId === identity || username === identity) && entry.password === password;
-  });
 
-  if (!user) {
-    setMessage("Account not found or password is incorrect.", "error");
-    return;
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identity, password, role: selectedRole })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setMessage(data.error || "Login failed.", "error");
+      return;
+    }
+
+    // Save token and user info
+    localStorage.setItem('attendance360Token', data.token);
+    persistSession(data.user);
+    
+    setMessage(`Login successful. Redirecting to ${roleConfig[selectedRole].label} portal...`, "success");
+    setTimeout(() => goToPortal(selectedRole), 700);
+
+  } catch (err) {
+    setMessage("Network error. Please try again later.", "error");
   }
-
-  persistSession(user);
-  setMessage(`Login successful. Redirecting to ${roleConfig[selectedRole].label} portal...`, "success");
-  setTimeout(() => goToPortal(selectedRole), 700);
 });
 
-registerForm.addEventListener("submit", (event) => {
+registerForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   if (!selectedRole) {
@@ -282,20 +292,7 @@ registerForm.addEventListener("submit", (event) => {
     return;
   }
 
-  const users = getUsers();
-  const emailExists = users.some((entry) => (entry.email || "").toLowerCase() === email.toLowerCase());
-  if (emailExists) {
-    setMessage("An account with this email already exists.", "error");
-    return;
-  }
-
-  const usernameExists = users.some((entry) => (entry.username || "").toLowerCase() === username.toLowerCase());
-  if (usernameExists) {
-    setMessage("This username is already taken.", "error");
-    return;
-  }
-
-  const user = {
+  const payload = {
     role: selectedRole,
     firstName,
     lastName,
@@ -306,15 +303,30 @@ registerForm.addEventListener("submit", (event) => {
     userId: generateUserId(selectedRole)
   };
 
-  users.push(user);
-  saveUsers(users);
-  clearSession();
-  registerForm.reset();
-  setMode("login");
-  loginIdentity.value = username;
-  loginPassword.value = "";
+  try {
+    const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
 
-  setMessage(`Registration successful. Your ${roleConfig[selectedRole].label.toLowerCase()} ID is ${user.userId}. Please log in with your username or email.`, "success");
+    const data = await response.json();
+
+    if (!response.ok) {
+        setMessage(data.error || "Registration failed.", "error");
+        return;
+    }
+
+    clearSession();
+    registerForm.reset();
+    setMode("login");
+    loginIdentity.value = username;
+    loginPassword.value = "";
+
+    setMessage(`Registration successful. Your ${roleConfig[selectedRole].label.toLowerCase()} ID is ${data.userId}. Please log in.`, "success");
+  } catch (err) {
+    setMessage("Network error. Please try again later.", "error");
+  }
 });
 
 function applyPrefillFromStorage() {
