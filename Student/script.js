@@ -58,11 +58,11 @@ function loadSharedData() {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        classes: Array.isArray(parsed.classes) ? parsed.classes : structuredClone(defaultData.classes),
-        shared: Array.isArray(parsed.shared) ? parsed.shared : structuredClone(defaultData.shared),
-        directShares: Array.isArray(parsed.directShares) ? parsed.directShares : structuredClone(defaultData.directShares),
-        conversations: Array.isArray(parsed.conversations) ? parsed.conversations : structuredClone(defaultData.conversations),
-        attendanceRecords: Array.isArray(parsed.attendanceRecords) ? parsed.attendanceRecords : [],
+        classes: [],
+        shared: [],
+        directShares: Array.isArray(parsed.directShares) ? parsed.directShares : [],
+        conversations: Array.isArray(parsed.conversations) ? parsed.conversations : [],
+        attendanceRecords: [],
         notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
         feedbackForms: Array.isArray(parsed.feedbackForms) ? parsed.feedbackForms : []
       };
@@ -71,7 +71,15 @@ function loadSharedData() {
     console.warn("Failed to load shared student data", error);
   }
 
-  return structuredClone(defaultData);
+  return {
+    classes: [],
+    shared: [],
+    directShares: [],
+    conversations: [],
+    attendanceRecords: [],
+    notifications: [],
+    feedbackForms: []
+  };
 }
 
 function saveSharedData(sharedData) {

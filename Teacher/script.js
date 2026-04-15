@@ -159,13 +159,13 @@ function loadSharedData() {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        classes: Array.isArray(parsed.classes) ? parsed.classes : structuredClone(defaultClasses),
-        shared: Array.isArray(parsed.shared) ? parsed.shared : structuredClone(defaultShared),
-        attendanceRecords: Array.isArray(parsed.attendanceRecords) ? parsed.attendanceRecords : structuredClone(defaultAttendanceRecords),
-        directShares: Array.isArray(parsed.directShares) ? parsed.directShares : structuredClone(defaultDirectShares),
-        conversations: Array.isArray(parsed.conversations) ? parsed.conversations : structuredClone(defaultConversations),
-        notifications: Array.isArray(parsed.notifications) ? parsed.notifications : structuredClone(defaultNotifications),
-        feedbackForms: Array.isArray(parsed.feedbackForms) ? parsed.feedbackForms : structuredClone(defaultFeedbackForms)
+        classes: [], // Always fetch from backend
+        shared: [], // Always fetch from backend
+        attendanceRecords: [], // Always fetch from backend
+        directShares: Array.isArray(parsed.directShares) ? parsed.directShares : [],
+        conversations: Array.isArray(parsed.conversations) ? parsed.conversations : [],
+        notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
+        feedbackForms: Array.isArray(parsed.feedbackForms) ? parsed.feedbackForms : []
       };
     }
   } catch (error) {
@@ -173,13 +173,13 @@ function loadSharedData() {
   }
 
   return {
-    classes: structuredClone(defaultClasses),
-    shared: structuredClone(defaultShared),
-    attendanceRecords: structuredClone(defaultAttendanceRecords),
-    directShares: structuredClone(defaultDirectShares),
-    conversations: structuredClone(defaultConversations),
-    notifications: structuredClone(defaultNotifications),
-    feedbackForms: structuredClone(defaultFeedbackForms)
+    classes: [],
+    shared: [],
+    attendanceRecords: [],
+    directShares: [],
+    conversations: [],
+    notifications: [],
+    feedbackForms: []
   };
 }
 
