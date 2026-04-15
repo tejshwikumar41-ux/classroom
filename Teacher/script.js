@@ -3,101 +3,7 @@ const USERS_KEY = "attendance360Users";
 const SESSION_KEY = "attendance360CurrentUser";
 const TEACHER_NOTIFICATION_STATE_KEY = "attendance360TeacherNotificationState";
 
-const defaultClasses = [
-  {
-    name: "Machine Learning",
-    code: "ML-501",
-    students: [
-      { name: "Prithvi Singh Bhadoria", id: "BTET2501097", mobile: "9826910621" },
-      { name: "Sanskar Sinha", id: "BTAM2501058", mobile: "7000411437" },
-      { name: "Pushkar Chaurasia", id: "BTTC2501058", mobile: "9293770083" },
-      { name: "Ekagra Darbari", id: "BTET2501052", mobile: "9425145988" },
-      { name: "Animesh Garg", id: "BTCE2501006", mobile: "9669484706" },
-      { name: "Aditya Sahu", id: "BTDC2501006", mobile: "9399554818" },
-      { name: "Aditya Vaidya", id: "BTCS2501064", mobile: "8319570799" },
-      { name: "Prince Rakhloya", id: "BTIE2501099", mobile: "6322393575" },
-      { name: "Vyom Tankle", id: "BTAM2501062", mobile: "8104871003" },
-      { name: "Yugraj Raghuwanshi", id: "BTIE2501156", mobile: "9340035721" },
-      { name: "Dhawal Badonia", id: "BTIE2501090", mobile: "6263191660" },
-      { name: "Dhruv Shukla", id: "BTCB2501049", mobile: "9305542841" },
-      { name: "Arpit Chakravarty", id: "BTCB2501049", mobile: "9406686187" },
-      { name: "Kushagra Kesharwani", id: "BTCS2501074", mobile: "7692169977" },
-      { name: "Aditya Dixit", id: "BTAM2501006", mobile: "9893024123" },
-      { name: "Danish Garg", id: "BTCB2501047", mobile: "9340487828" },
-      { name: "Kratik Patil", id: "BTCB2501035", mobile: "9302887027" },
-      { name: "Devansh Sahu", id: "BTCB2501041", mobile: "8241939929" },
-      { name: "Hritik Agrawal", id: "BTCB2501028", mobile: "7424954378" },
-      { name: "Krishna Chouhan", id: "BTCB2501074", mobile: "8464045833" },
-      { name: "Divyansh Singh", id: "BTAM2501024", mobile: "9223802054" },
-      { name: "Harshit Namdeo", id: "BTCE2501090", mobile: "9342701348" },
-      { name: "Pragyev Kumar Gour", id: "BTMC2501094", mobile: "7725077709" },
-      { name: "Nihal Patel", id: "BTCE2501085", mobile: "9328989277" },
-      { name: "Abhayraj Chaurasia", id: "BTCS2501040", mobile: "9139979182" },
-      { name: "Dev Sahu", id: "BTBC2501047", mobile: "9117015828" },
-      { name: "Prince Patel", id: "BTMC2501102", mobile: "9111051183" },
-      { name: "Mayank Gupta", id: "BTAD2501040", mobile: "7000474936" },
-      { name: "Chetany Namdev", id: "BTEL2501039", mobile: "8982105399" },
-      { name: "Pratham Sen", id: "BTCB2501050", mobile: "9696848967" },
-      { name: "Badal Vishwakarma", id: "BTAM2501107", mobile: "9340232920" },
-      { name: "Pranjal Yadav", id: "BTAL2401099", mobile: "9903017277" },
-      { name: "Vaibhav Bajpai", id: "BTCB2501148", mobile: "7498872530" },
-      { name: "Aryan Tiwari", id: "BTMC2501024", mobile: "7987042696" }
-    ],
-    files: []
-  },
-  {
-    name: "Data Structure",
-    code: "DS-410",
-    students: [
-      { name: "Lakshya Gupta", id: "BTET2501075", mobile: "8959566333" },
-      { name: "Prithvi Raj Shinde", id: "BTTC2501052", mobile: "8982410994" },
-      { name: "Nirmal Kumar Sawner", id: "BTIR2501032", mobile: "9407066692" },
-      { name: "Manas Patidar", id: "BTIR2501049", mobile: "8269824024" },
-      { name: "Divyansh Maheshwari", id: "BTIR2501019", mobile: "9109729637" },
-      { name: "Aditya Dubey", id: "BTAL2401010", mobile: "9039813006" },
-      { name: "Adarsh Soni", id: "BTIR2501009", mobile: "9399860706" },
-      { name: "Kartikey Singh Verma", id: "BTCE2501065", mobile: "8770415680" },
-      { name: "Abhay Soni", id: "BTCE2501001", mobile: "9238799801" },
-      { name: "Gurutuva Singh Shakya", id: "BTCS2501061", mobile: "9425813508" },
-      { name: "Isht Gour", id: "BTAM2501023", mobile: "7987844275" },
-      { name: "Rishabh Dev Saini", id: "BTIE2501113", mobile: "7248158752" },
-      { name: "Raman Namdev", id: "BTIE2501084", mobile: "8827167424" },
-      { name: "Gourav Hardaha", id: "BTCD2501048", mobile: "9301952297" },
-      { name: "Naman Kumar Tripathi", id: "BTCB2501083", mobile: "8987086872" },
-      { name: "Prakhar Saulake", id: "BTIR2501041", mobile: "9425955518" },
-      { name: "Anchit Jain", id: "BTAM2501109", mobile: "8083526934" },
-      { name: "Srijan Keshri", id: "BTCD2501341", mobile: "7977162819" },
-      { name: "Naman Kumar Mishra", id: "BTIE2501083", mobile: "7918475689" },
-      { name: "Rudransh", id: "BTAM2501028", mobile: "9168178865" },
-      { name: "Teishwi Kumar", id: "BTAM2501066", mobile: "9942981303" },
-      { name: "Harshit Mehra", id: "BTAM2501030", mobile: "9243091435" },
-      { name: "Arman Singh", id: "BTAD2501013", mobile: "8887556662" },
-      { name: "Piyush Moonat", id: "BTCS2501100", mobile: "9770283667" },
-      { name: "Dikshant Kumar Suryavanshi", id: "BTIE2501046", mobile: "8815081516" },
-      { name: "Ajay Meena", id: "BTCS2501007", mobile: "9895638177" },
-      { name: "Aditya Patel", id: "BTCD2501005", mobile: "8269721453" },
-      { name: "Priyanshu Gurdekar", id: "BTCS2501054", mobile: "8815889104" },
-      { name: "Kunal Thakur", id: "BTAM2501041", mobile: "9343777983" },
-      { name: "Avanish Sharma", id: "BTAD2501050", mobile: "9425628900" },
-      { name: "Ayush Kaurav", id: "BTAL2401039", mobile: "9285504121" },
-      { name: "Divy Jain", id: "BTCE2501092", mobile: "9691152989" },
-      { name: "Shourya Pathariya", id: "BTCE2501070", mobile: "9479745567" },
-      { name: "Rohit Patel", id: "BTIE2501076", mobile: "8109526940" },
-      { name: "Moulik Gupta", id: "BTCE2501042", mobile: "7987233990" },
-      { name: "Kush Yadav", id: "BTCE2501072", mobile: "8959676266" },
-      { name: "Divyansh Singh Uikey", id: "BTCS2501056", mobile: "9752002117" },
-      { name: "Amogh Ameye", id: "BTCS2501100", mobile: "7870616041" },
-      { name: "Aditya Kumar Jaiswal", id: "BTCD2501003", mobile: "9752110164" },
-      { name: "Hansraj Thakur", id: "BTCS2501062", mobile: "9009098065" },
-      { name: "Kartik Lodhi", id: "BTCS2501065", mobile: "7869900580" },
-      { name: "Harsh Mahashabde", id: "BTCE2501084", mobile: "6262103310" },
-      { name: "Satish Patel", id: "BTCE2501120", mobile: "9827395337" },
-      { name: "Sajal Agrawal", id: "BTCE2501127", mobile: "9091538789" },
-      { name: "Arjun Gupta", id: "BTCE2501021", mobile: "6260639535" }
-    ],
-    files: []
-  }
-];
+
 
 const defaultShared = [];
 const defaultAttendanceRecords = [];
@@ -641,7 +547,7 @@ async function addStudent() {
     if (!res.ok) throw new Error(data.error);
 
     classItem.students.push({ name, id, mobile, marks: null });
-    
+
     document.getElementById("studentName").value = "";
     document.getElementById("studentId").value = "";
     document.getElementById("studentMobile").value = "";
@@ -662,25 +568,25 @@ async function shareFile() {
   const notes = document.getElementById("fileNotes").value.trim();
   const upload = document.getElementById("fileUpload");
   if (!title || !code) return toast("Add title and class");
-  
+
   const classItem = getClassByCode(code);
   if (!classItem) return toast("Class not found");
 
   try {
     const res = await fetch('/api/files', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('attendance360Token')
-        },
-        body: JSON.stringify({
-            title,
-            type,
-            notes,
-            classId: classItem.id
-        })
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('attendance360Token')
+      },
+      body: JSON.stringify({
+        title,
+        type,
+        notes,
+        classId: classItem.id
+      })
     });
-    
+
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
@@ -688,7 +594,7 @@ async function shareFile() {
       ? await Promise.all(Array.from(upload.files).map(readFileAsDataUrl))
       : [];
     const pickedNames = attachments.length ? attachments.map((file) => file.name).join(", ") : "No attachment";
-    
+
     const entry = {
       id: data.id,
       title,
@@ -699,10 +605,10 @@ async function shareFile() {
       files: pickedNames,
       attachments
     };
-    
+
     shared.unshift(entry);
     classItem.files.push(entry);
-    
+
     document.getElementById("fileTitle").value = "";
     document.getElementById("fileNotes").value = "";
     document.getElementById("fileUpload").value = "";
@@ -913,7 +819,7 @@ function saveAttendance() {
   classItem.students.forEach((student) => {
     const oldStatus = previousRecord?.present?.some((entry) => entry.id === student.id) ? "Present"
       : previousRecord?.absent?.some((entry) => entry.id === student.id) ? "Absent"
-      : "";
+        : "";
     const newStatus = present.some((entry) => entry.id === student.id) ? "Present" : "Absent";
     const message = oldStatus && oldStatus !== newStatus
       ? `${classItem.name}: attendance for ${formatAttendanceDate(attendanceDate)} was updated to ${newStatus}.`
@@ -1409,47 +1315,47 @@ async function initializeBackend() {
   try {
     const token = localStorage.getItem('attendance360Token');
     if (!token) return;
-    
+
     const classesRes = await fetch('/api/classes', {
-        headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + token }
     });
     const classesData = await classesRes.json();
-    
+
     if (classesRes.ok) {
-        const mappedClasses = classesData.map(c => ({
-            id: c.id,
-            name: c.name,
-            code: c.code,
-            students: c.students ? c.students.map(cs => ({ 
-                id: cs.student.userId, 
-                name: cs.student.firstName + ' ' + cs.student.lastName, 
-                mobile: cs.student.phone,
-                marks: null
-            })) : [],
-            files: c.files || []
-        }));
-        
-        classes.splice(0, classes.length, ...mappedClasses);
-        renderClasses();
-        renderStudents();
+      const mappedClasses = classesData.map(c => ({
+        id: c.id,
+        name: c.name,
+        code: c.code,
+        students: c.students ? c.students.map(cs => ({
+          id: cs.student.userId,
+          name: cs.student.firstName + ' ' + cs.student.lastName,
+          mobile: cs.student.phone,
+          marks: null
+        })) : [],
+        files: c.files || []
+      }));
+
+      classes.splice(0, classes.length, ...mappedClasses);
+      renderClasses();
+      renderStudents();
     }
-    
+
     const filesRes = await fetch('/api/files', {
-        headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + token }
     });
     const filesData = await filesRes.json();
-    
+
     if (filesRes.ok) {
-        shared.splice(0, shared.length, ...filesData.map(f => ({
-            id: f.id,
-            title: f.title,
-            type: f.type,
-            notes: f.notes,
-            class: f.class ? f.class.name : '',
-            classCode: f.class ? f.class.code : '',
-            files: f.fileUrl || "No attachment"
-        })));
-        renderFiles();
+      shared.splice(0, shared.length, ...filesData.map(f => ({
+        id: f.id,
+        title: f.title,
+        type: f.type,
+        notes: f.notes,
+        class: f.class ? f.class.name : '',
+        classCode: f.class ? f.class.code : '',
+        files: f.fileUrl || "No attachment"
+      })));
+      renderFiles();
     }
   } catch (err) {
     console.warn("Failed to initialize backend data", err);
