@@ -455,7 +455,7 @@ async function createClass() {
     if (!res.ok) throw new Error(data.error);
 
     classes.push({ id: data.id, name: data.name, code: data.code, students: [], files: [] });
-    // persistSharedData(); is now obsolete here
+    persistSharedData();
     document.getElementById("className").value = "";
     document.getElementById("classCode").value = "";
     renderClasses();
@@ -555,6 +555,7 @@ async function addStudent() {
     renderAttendanceWorkspace();
     renderAttendanceSearchResults();
     renderFeedbackEligibility();
+    persistSharedData();
     toast("Student added");
   } catch (err) {
     toast(err.message || "Failed to add student. Ensure ID exists.");

@@ -178,7 +178,8 @@ app.get('/api/classes', authenticateToken, async (req, res) => {
             class: { 
                 include: { 
                     teacher: { select: { firstName: true, lastName: true } },
-                    files: true
+                    files: true,
+                    students: { include: { student: true } }
                 } 
             } 
         }
