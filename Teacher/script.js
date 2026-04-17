@@ -3,7 +3,10 @@ const USERS_KEY = "attendance360Users";
 const SESSION_KEY = "attendance360CurrentUser";
 const TEACHER_NOTIFICATION_STATE_KEY = "attendance360TeacherNotificationState";
 
-
+let API_BASE = "";
+if (window.location.protocol === "file:" || ((window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") && window.location.port !== "3000")) {
+  API_BASE = "http://localhost:3000";
+}
 
 const defaultShared = [];
 const defaultAttendanceRecords = [];
@@ -443,7 +446,7 @@ async function createClass() {
   if (!name || !code) return toast("Add class name and code");
 
   try {
-    const res = await fetch('/api/classes', {
+    const res = await fetch(API_BASE + '/api/classes', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -535,7 +538,7 @@ async function addStudent() {
 
   try {
     // Note: classItem must have an .id property from DB!
-    const res = await fetch(`/api/classes/${classItem.id}/students`, {
+    const res = await fetch(API_BASE + `/api/classes/${classItem.id}/students`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -574,7 +577,7 @@ async function shareFile() {
   if (!classItem) return toast("Class not found");
 
   try {
-    const res = await fetch('/api/files', {
+    const res = await fetch(API_BASE + '/api/files', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1317,7 +1320,7 @@ async function initializeBackend() {
     const token = localStorage.getItem('attendance360Token');
     if (!token) return;
 
-    const classesRes = await fetch('/api/classes', {
+    const classesRes = await fetch(API_BASE + '/api/classes', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     const classesData = await classesRes.json();
@@ -1341,7 +1344,7 @@ async function initializeBackend() {
       renderStudents();
     }
 
-    const filesRes = await fetch('/api/files', {
+    const filesRes = await fetch(API_BASE + '/api/files', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     const filesData = await filesRes.json();

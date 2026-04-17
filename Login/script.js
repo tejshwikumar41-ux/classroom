@@ -2,6 +2,11 @@ const USERS_KEY = "attendance360Users";
 const SESSION_KEY = "attendance360CurrentUser";
 const AUTH_PREFILL_KEY = "attendance360AuthPrefill";
 
+let API_BASE = "";
+if (window.location.protocol === "file:" || ((window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") && window.location.port !== "3000")) {
+  API_BASE = "http://localhost:3000";
+}
+
 const roleButtons = document.querySelectorAll(".role-btn");
 const toggleButtons = document.querySelectorAll(".toggle-btn");
 const switchButtons = document.querySelectorAll("[data-switch]");
@@ -241,7 +246,7 @@ loginForm.addEventListener("submit", async (event) => {
   const password = loginPassword.value;
 
   try {
-    const response = await fetch('/api/auth/login', {
+    const response = await fetch(API_BASE + '/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identity, password, role: selectedRole })
@@ -262,7 +267,8 @@ loginForm.addEventListener("submit", async (event) => {
     setTimeout(() => goToPortal(selectedRole), 700);
 
   } catch (err) {
-    setMessage("Network error. Please try again later.", "error");
+    console.error("Login fetch error:", err);
+    setMessage("Network error: " + (err.message || "Please try again later."), "error");
   }
 });
 
@@ -304,7 +310,7 @@ registerForm.addEventListener("submit", async (event) => {
   };
 
   try {
-    const response = await fetch('/api/auth/register', {
+    const response = await fetch(API_BASE + '/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -325,7 +331,8 @@ registerForm.addEventListener("submit", async (event) => {
 
     setMessage(`Registration successful. Your ${roleConfig[selectedRole].label.toLowerCase()} ID is ${data.userId}. Please log in.`, "success");
   } catch (err) {
-    setMessage("Network error. Please try again later.", "error");
+    console.error("Register fetch error:", err);
+    setMessage("Network error: " + (err.message || "Please try again later."), "error");
   }
 });
 

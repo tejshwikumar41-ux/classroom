@@ -1,6 +1,11 @@
 const STORAGE_KEY = "attendance360-shared-data";
 const SESSION_KEY = "attendance360CurrentUser";
 
+let API_BASE = "";
+if (window.location.protocol === "file:" || ((window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") && window.location.port !== "3000")) {
+  API_BASE = "http://localhost:3000";
+}
+
 const defaultData = {
     classes: [],
   shared: [],
@@ -669,13 +674,13 @@ async function initializeBackend() {
     if (!token) return;
     
     // Fetch classes (Returns classes with teacher info and potentially files)
-    const classesRes = await fetch('/api/classes', {
+    const classesRes = await fetch(API_BASE + '/api/classes', {
         headers: { 'Authorization': 'Bearer ' + token }
     });
     const classesData = await classesRes.json();
     
     // Fetch all files
-    const filesRes = await fetch('/api/files', {
+    const filesRes = await fetch(API_BASE + '/api/files', {
         headers: { 'Authorization': 'Bearer ' + token }
     });
     const filesData = await filesRes.json();
