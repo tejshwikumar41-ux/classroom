@@ -5,7 +5,7 @@ const TEACHER_NOTIFICATION_STATE_KEY = "attendance360TeacherNotificationState";
 
 let API_BASE = "";
 if (window.location.protocol === "file:" || ((window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") && window.location.port !== "3000")) {
-  API_BASE = "http://localhost:3000";
+  API_BASE = "https://classroom-seven-beta.vercel.app";
 }
 
 const defaultShared = [];
