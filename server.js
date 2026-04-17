@@ -207,9 +207,15 @@ app.post('/api/classes/:classId/students', authenticateToken, async (req, res) =
     const student = await prisma.user.findUnique({ where: { userId: studentId } });
     if (!student || student.role !== 'student') return res.status(404).json({ error: 'Student not found' });
 
-    await prisma.classStudent.create({
-      data: { classId: parseInt(classId), studentId: student.id }
+    const existingLink = await prisma.classStudent.findUnique({
+      where: { classId_studentId: { classId: parseInt(classId), studentId: student.id } }
     });
+
+    if (!existingLink) {
+      await prisma.classStudent.create({
+        data: { classId: parseInt(classId), studentId: student.id }
+      });
+    }
 
     res.json({ message: 'Student added successfully', student: {
         userId: student.userId,
@@ -217,6 +223,25 @@ app.post('/api/classes/:classId/students', authenticateToken, async (req, res) =
         lastName: student.lastName,
         phone: student.phone
     }});
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/classes/:classId/students/:studentId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
+    
+    const classRecord = await prisma.class.findUnique({ where: { id: parseInt(req.params.classId) } });
+    if (!classRecord || classRecord.teacherId !== req.user.id) return res.status(403).json({ error: "No permission" });
+
+    const student = await prisma.user.findUnique({ where: { userId: req.params.studentId } });
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    await prisma.classStudent.deleteMany({
+      where: { classId: parseInt(req.params.classId), studentId: student.id }
+    });
+    res.json({ message: 'Removed' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

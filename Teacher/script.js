@@ -646,10 +646,20 @@ function renderFiles() {
   });
 }
 
-function removeStudent(classCode, idx) {
+function asyncRemoveStudent(classCode, idx) {
   const classItem = getClassByCode(classCode);
   if (!classItem || !classItem.students[idx]) return;
-  const [removedStudent] = classItem.students.splice(idx, 1);
+  const removedStudent = classItem.students[idx];
+
+  const token = localStorage.getItem('attendance360Token');
+  if (token) {
+    fetch(API_BASE + `/api/classes/${classItem.id}/students/${removedStudent.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).catch(e => console.warn("Failed to delete from DB", e));
+  }
+
+  classItem.students.splice(idx, 1);
 
   for (let shareIndex = directShares.length - 1; shareIndex >= 0; shareIndex -= 1) {
     if (directShares[shareIndex].studentId === removedStudent.id) directShares.splice(shareIndex, 1);
@@ -1199,11 +1209,26 @@ function logout() {
   localStorage.removeItem(SESSION_KEY);
   window.location.href = "../Login/index.html";
 }
+
+async function asyncRemoveStudent(classCode, studentIdx) {
+  const token = localStorage.getItem('attendance360Token');
+  const cls = classes.find(c => c.code === classCode);
+  const student = cls?.students[studentIdx];
+  if (token && student) {
+    await fetch(`${API_BASE}/api/classes/${cls.id}/students/${student.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+  }
+  removeStudent(classCode, studentIdx);
+}
+
 if (studentListEl) {
   studentListEl.addEventListener("click", (event) => {
-    const removeBtn = event.target.closest(".remove-student-btn");
-    if (removeBtn) {
-      removeStudent(removeBtn.getAttribute("data-class"), Number(removeBtn.getAttribute("data-idx")));
+    if (event.target.classList.contains("remove-student-btn")) {
+      const cls = event.target.getAttribute("data-class");
+      const idx = event.target.getAttribute("data-idx");
+      asyncRemoveStudent(cls, parseInt(idx));
       return;
     }
     const chatBtn = event.target.closest(".open-student-connect");
