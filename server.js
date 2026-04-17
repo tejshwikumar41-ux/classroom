@@ -22,14 +22,14 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   
-  if (!token) return res.sendStatus(401);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
   
   jwt.verify(token, JWT_SECRET, async (err, decoded) => {
-    if (err) return res.sendStatus(403);
+    if (err) return res.status(403).json({ error: 'Forbidden' });
     
     try {
       const user = await prisma.user.findUnique({ where: { id: decoded.id } });
-      if (!user) return res.sendStatus(403);
+      if (!user) return res.status(403).json({ error: 'User forbidden or not found' });
       req.user = user;
       next();
     } catch (e) {
@@ -200,7 +200,7 @@ app.get('/api/classes', authenticateToken, async (req, res) => {
 
 app.post('/api/classes/:classId/students', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher') return res.sendStatus(403);
+    if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
     const { classId } = req.params;
     const { studentId } = req.body; // Actually the userId (e.g. STD123)
 
@@ -241,7 +241,7 @@ app.get('/api/classes/:classId/students', authenticateToken, async (req, res) =>
 
 app.post('/api/files', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher') return res.sendStatus(403);
+    if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
     const { title, type, notes, classId } = req.body;
     
     const file = await prisma.file.create({
@@ -282,7 +282,7 @@ app.get('/api/files', authenticateToken, async (req, res) => {
 
 app.post('/api/attendance', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher') return res.sendStatus(403);
+    if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
     const { date, classId, records } = req.body;
     // records: [{ studentId: Int, status: 'present' | 'absent' }]
 
