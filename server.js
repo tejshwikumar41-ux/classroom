@@ -24,10 +24,17 @@ const authenticateToken = (req, res, next) => {
   
   if (!token) return res.sendStatus(401);
   
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
     if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
+    
+    try {
+      const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+      if (!user) return res.sendStatus(403);
+      req.user = user;
+      next();
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
   });
 };
 
