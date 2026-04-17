@@ -211,7 +211,12 @@ app.post('/api/classes/:classId/students', authenticateToken, async (req, res) =
       data: { classId: parseInt(classId), studentId: student.id }
     });
 
-    res.json({ message: 'Student added successfully' });
+    res.json({ message: 'Student added successfully', student: {
+        userId: student.userId,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        phone: student.phone
+    }});
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

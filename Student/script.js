@@ -213,8 +213,8 @@ function getCurrentStudentRecord(sharedData = loadSharedData()) {
   for (const classItem of sharedData.classes) {
     for (const student of classItem.students) {
       const sameName = fullName && student.name.toLowerCase() === fullName;
-      const samePhone = currentUser.phone && student.mobile === currentUser.phone;
-      const sameId = currentUser.userId && student.id === currentUser.userId;
+      const samePhone = currentUser.phone && student.mobile && student.mobile.trim() === currentUser.phone.trim();
+      const sameId = currentUser.userId && student.id && student.id.toLowerCase() === currentUser.userId.toLowerCase();
       if (sameName || samePhone || sameId) {
         return { classItem, student };
       }

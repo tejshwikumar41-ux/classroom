@@ -549,7 +549,13 @@ async function addStudent() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    classItem.students.push({ name, id, mobile, marks: null });
+    const apiStudent = data.student;
+    classItem.students.push({ 
+        name: apiStudent ? `${apiStudent.firstName} ${apiStudent.lastName}`.trim() : name, 
+        id: apiStudent ? apiStudent.userId : id, 
+        mobile: apiStudent ? apiStudent.phone : mobile, 
+        marks: null 
+    });
 
     document.getElementById("studentName").value = "";
     document.getElementById("studentId").value = "";
