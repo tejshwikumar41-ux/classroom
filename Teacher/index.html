@@ -3,8 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Attendance360 · Teacher</title>
+  <title>Attendance360 · Teacher Dashboard</title>
+  <meta name="description" content="Attendance360 Teacher Dashboard — manage classes, students, files, and attendance.">
   <link rel="stylesheet" href="style.css">
+  <style>
+    @keyframes slideInToast {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .spinner-bar {
+      position: fixed; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      animation: spinnerSlide 1.2s ease-in-out infinite;
+      z-index: 9999;
+    }
+    @keyframes spinnerSlide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .lookup-hint { font-size: 0.8rem; color: var(--muted, #8899aa); margin-top: 2px; }
+    .field-group { margin-bottom: 12px; }
+  </style>
 </head>
 <body>
   <header>
@@ -109,18 +128,37 @@
     </section>
 
     <section class="section card" id="students">
-      <h2>Add Students</h2>
-      <label for="studentName">Student name</label>
-      <input id="studentName" placeholder="Student full name">
-      <label for="studentId">Student ID</label>
-      <input id="studentId" placeholder="e.g., BTCS2501001">
-      <label for="studentMobile">Mobile number</label>
-      <input id="studentMobile" placeholder="10-digit mobile">
-      <label for="studentClass">Assign to class</label>
-      <select id="studentClass"></select>
-      <button class="btn" style="margin-top:12px;" onclick="addStudent()">Add Student</button>
-      <label for="studentSearch">Search students</label>
-      <input id="studentSearch" placeholder="Search by name, ID, or mobile number">
+      <h2>Add Students to Class</h2>
+      <p class="muted">Enter the student's registered ID to look them up and add them to a class. The name and phone are auto-filled from their account.</p>
+
+      <div class="field-group">
+        <label for="studentId">Student Registered ID <span style="color:#a855f7">*</span></label>
+        <input id="studentId" placeholder="e.g., STD123456" autocomplete="off">
+        <p class="lookup-hint">Blur this field to auto-lookup name and phone from the database.</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="field-group">
+          <label for="studentName">Student Name (auto-filled)</label>
+          <input id="studentName" placeholder="Auto-filled after lookup" readonly style="opacity:0.7;cursor:not-allowed">
+        </div>
+        <div class="field-group">
+          <label for="studentMobile">Phone (auto-filled)</label>
+          <input id="studentMobile" placeholder="Auto-filled after lookup" readonly style="opacity:0.7;cursor:not-allowed">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="studentClass">Assign to Class <span style="color:#a855f7">*</span></label>
+        <select id="studentClass"></select>
+      </div>
+
+      <button class="btn" style="margin-top:12px;" onclick="addStudent()">Add Student to Class</button>
+
+      <div style="margin-top:24px;">
+        <label for="studentSearch">Search enrolled students</label>
+        <input id="studentSearch" placeholder="Search by name, ID, or mobile number">
+      </div>
       <div class="list" id="studentList"></div>
     </section>
 

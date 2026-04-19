@@ -1,746 +1,762 @@
-const STORAGE_KEY = "attendance360-shared-data";
-const SESSION_KEY = "attendance360CurrentUser";
+/* ============================================================
+   Attendance360 — Student Portal Script
+   ============================================================ */
+
+const STORAGE_KEY  = "attendance360-shared-data";
+const SESSION_KEY  = "attendance360CurrentUser";
+const TOKEN_KEY    = "attendance360Token";
 
 let API_BASE = "";
-if (window.location.protocol === "file:" || ((window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") && window.location.port !== "3000")) {
+if (
+  window.location.protocol === "file:" ||
+  ((window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") &&
+    window.location.port !== "3000")
+) {
   API_BASE = "https://classroom-seven-beta.vercel.app";
 }
 
-const defaultData = {
-    classes: [],
-  shared: [],
-  directShares: [],
-  conversations: [],
-  attendanceRecords: [],
-  notifications: [],
-  feedbackForms: []
-};
+/* ─── State ─────────────────────────────────────────────────── */
+let enrolledClasses   = [];   // from backend
+let sharedFiles       = [];   // from backend
+let apiMessages       = {};   // keyed by teacherDbId → messages[]
+let directShares      = [];   // from localStorage
+let conversations     = [];   // from localStorage (fallback)
+let notifications     = [];   // from localStorage
+let feedbackForms     = [];   // from localStorage
 
-const sectionLinks = document.querySelectorAll("nav a, .cta-row .btn, .grid-3 .btn, .item .btn");
-const studentClassesList = document.getElementById("studentClassesList");
-const studentClassCount = document.getElementById("studentClassCount");
-const studentFileList = document.getElementById("studentFileList");
-const studentPersonalUpdates = document.getElementById("studentPersonalUpdates");
-const personalUpdateCount = document.getElementById("personalUpdateCount");
-const studentPersonalStatus = document.getElementById("studentPersonalStatus");
-const studentChatThread = document.getElementById("studentChatThread");
-const studentConversationStatus = document.getElementById("studentConversationStatus");
-const studentReplyMessage = document.getElementById("studentReplyMessage");
-const sendStudentReply = document.getElementById("sendStudentReply");
-const studentFeedbackForms = document.getElementById("studentFeedbackForms");
-const feedbackFormCount = document.getElementById("feedbackFormCount");
-const notificationToggle = document.getElementById("notificationToggle");
-const notificationBadge = document.getElementById("notificationBadge");
-const notificationPanel = document.getElementById("notificationPanel");
-const notificationList = document.getElementById("notificationList");
-const notificationPanelStatus = document.getElementById("notificationPanelStatus");
-const attendanceOverallPercent = document.getElementById("attendanceOverallPercent");
-const attendancePresentDays = document.getElementById("attendancePresentDays");
-const attendanceAbsentDays = document.getElementById("attendanceAbsentDays");
-const attendanceLogCount = document.getElementById("attendanceLogCount");
-const attendanceLogList = document.getElementById("attendanceLogList");
-const pdfReader = document.getElementById("pdfReader");
-const pdfFrame = document.getElementById("pdfFrame");
-const pdfTitle = document.getElementById("pdfTitle");
-const closePdfReader = document.getElementById("closePdfReader");
-const logoutBtn = document.getElementById("logoutBtn");
-const currentUser = getCurrentUser();
+let currentUser       = getCurrentUser();
+let activeTeacherCtx  = null; // { teacherId, teacherName, teacherDbId, classCode, className }
 
 let currentMonth = new Date().getMonth();
-let currentYear = new Date().getFullYear();
+let currentYear  = new Date().getFullYear();
 
+/* ─── DOM refs ───────────────────────────────────────────────── */
+const studentClassesList        = document.getElementById("studentClassesList");
+const studentClassCount         = document.getElementById("studentClassCount");
+const studentFileList           = document.getElementById("studentFileList");
+const studentPersonalUpdates    = document.getElementById("studentPersonalUpdates");
+const personalUpdateCount       = document.getElementById("personalUpdateCount");
+const studentPersonalStatus     = document.getElementById("studentPersonalStatus");
+const studentChatThread         = document.getElementById("studentChatThread");
+const studentConversationStatus = document.getElementById("studentConversationStatus");
+const studentReplyMessage       = document.getElementById("studentReplyMessage");
+const sendStudentReply          = document.getElementById("sendStudentReply");
+const studentFeedbackForms      = document.getElementById("studentFeedbackForms");
+const feedbackFormCount         = document.getElementById("feedbackFormCount");
+const notificationToggle        = document.getElementById("notificationToggle");
+const notificationBadge         = document.getElementById("notificationBadge");
+const notificationPanel         = document.getElementById("notificationPanel");
+const notificationList          = document.getElementById("notificationList");
+const notificationPanelStatus   = document.getElementById("notificationPanelStatus");
+const attendanceOverallPercent  = document.getElementById("attendanceOverallPercent");
+const attendancePresentDays     = document.getElementById("attendancePresentDays");
+const attendanceAbsentDays      = document.getElementById("attendanceAbsentDays");
+const attendanceLogCount        = document.getElementById("attendanceLogCount");
+const attendanceLogList         = document.getElementById("attendanceLogList");
+const pdfReader                 = document.getElementById("pdfReader");
+const pdfFrame                  = document.getElementById("pdfFrame");
+const pdfTitle                  = document.getElementById("pdfTitle");
+const closePdfReader            = document.getElementById("closePdfReader");
+const logoutBtn                 = document.getElementById("logoutBtn");
+
+/* ─── Helpers ────────────────────────────────────────────────── */
 function getCurrentUser() {
-  try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
-  } catch (error) {
-    console.warn("Failed to load current user", error);
-    return null;
-  }
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }
+  catch { return null; }
 }
+function getToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
 
-function loadSharedData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        classes: [],
-        shared: [],
-        directShares: Array.isArray(parsed.directShares) ? parsed.directShares : [],
-        conversations: Array.isArray(parsed.conversations) ? parsed.conversations : [],
-        attendanceRecords: [],
-        notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
-        feedbackForms: Array.isArray(parsed.feedbackForms) ? parsed.feedbackForms : []
-      };
-    }
-  } catch (error) {
-    console.warn("Failed to load shared student data", error);
-  }
-
-  return {
-    classes: [],
-    shared: [],
-    directShares: [],
-    conversations: [],
-    attendanceRecords: [],
-    notifications: [],
-    feedbackForms: []
+function toast(msg, type = "default") {
+  const colors = {
+    success: { bg: "rgba(22,163,74,0.95)",  border: "rgba(74,222,128,0.4)"  },
+    error:   { bg: "rgba(220,38,38,0.95)",  border: "rgba(248,113,113,0.4)" },
+    default: { bg: "rgba(15,24,40,0.95)",   border: "rgba(255,255,255,0.12)"}
   };
-}
-
-function saveSharedData(sharedData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(sharedData));
-}
-
-if (!localStorage.getItem(STORAGE_KEY)) {
-  saveSharedData(defaultData);
-}
-
-function applyStudentProfile(user) {
-  if (!user || user.role?.toLowerCase().trim() !== "student") {
-    window.location.href = "../Login/index.html";
-    return;
-  }
-
-  const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
-  const welcome = document.getElementById("studentWelcome");
-  const intro = document.getElementById("studentIntro");
-  const nameCard = document.getElementById("studentNameCard");
-  const credentials = document.getElementById("studentCredentials");
-  const phone = document.getElementById("studentPhone");
-  const rolePill = document.getElementById("studentRolePill");
-
-  if (rolePill) rolePill.textContent = `Logged in as ${user.username}`;
-  if (welcome) welcome.textContent = `Welcome back, ${fullName}!`;
-  if (intro) intro.textContent = "Track your real attendance, catch every teacher update from notifications, and respond to feedback forms from one focused student dashboard.";
-  if (nameCard) nameCard.textContent = fullName || "Student";
-  if (credentials) credentials.textContent = `Username: ${user.username} · Student ID: ${user.userId}`;
-  if (phone) phone.textContent = `${user.email} · ${user.phone}`;
-}
-
-sectionLinks.forEach((link) => link.addEventListener("click", () => {
-  const target = link.getAttribute("data-target");
-  if (target) showSection(target);
-}));
-
-function showSection(id) {
-  document.querySelectorAll(".section").forEach((sec) => sec.classList.remove("active"));
-  document.querySelectorAll("nav a").forEach((a) => a.classList.remove("active"));
-  const section = document.getElementById(id);
-  const navLink = document.querySelector(`nav a[data-target="${id}"]`);
-  if (section) section.classList.add("active");
-  if (navLink) navLink.classList.add("active");
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function toast(msg) {
+  const c = colors[type] || colors.default;
   const note = document.createElement("div");
   note.textContent = msg;
-  note.style.position = "fixed";
-  note.style.bottom = "24px";
-  note.style.right = "24px";
-  note.style.padding = "12px 16px";
-  note.style.background = "rgba(15,24,40,0.9)";
-  note.style.color = getComputedStyle(document.documentElement).getPropertyValue("--text") || "#e7eefc";
-  note.style.border = "1px solid rgba(255,255,255,0.12)";
-  note.style.borderRadius = "10px";
-  note.style.boxShadow = "0 12px 30px rgba(0,0,0,0.35)";
-  note.style.zIndex = "50";
+  Object.assign(note.style, {
+    position: "fixed", bottom: "24px", right: "24px",
+    padding: "12px 18px", background: c.bg, color: "#f0f5ff",
+    border: `1px solid ${c.border}`, borderRadius: "12px",
+    boxShadow: "0 12px 40px rgba(0,0,0,0.5)", zIndex: "90",
+    maxWidth: "340px", fontSize: "0.9rem", lineHeight: "1.4",
+    animation: "slideInToast 0.3s ease"
+  });
   document.body.appendChild(note);
-  setTimeout(() => note.remove(), 1800);
+  setTimeout(() => {
+    note.style.opacity = "0";
+    note.style.transition = "opacity 0.3s";
+    setTimeout(() => note.remove(), 300);
+  }, 3500);
+}
+
+function showSpinner(show = true) {
+  let el = document.getElementById("globalSpinner");
+  if (!el && show) {
+    el = document.createElement("div");
+    el.id = "globalSpinner";
+    Object.assign(el.style, {
+      position: "fixed", top: 0, left: 0, right: 0, height: "3px",
+      background: "linear-gradient(90deg, #6366f1, #a855f7)",
+      zIndex: "9999", animation: "spinnerSlide 1.2s ease-in-out infinite"
+    });
+    document.body.prepend(el);
+  }
+  if (el) el.style.display = show ? "block" : "none";
 }
 
 function formatTimestamp(value) {
   if (!value) return "";
   return new Date(value).toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
+    day: "numeric", month: "short", year: "numeric",
+    hour: "numeric", minute: "2-digit"
   });
 }
-
 function formatDate(value) {
   if (!value) return "";
   return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
+    day: "numeric", month: "short", year: "numeric"
   });
 }
-
 function getBadgeClass(type) {
   if (type === "ZIP") return "badge soft";
   if (type === "DOC") return "badge alt";
   return "badge";
 }
 
-function isPdfFile(file) {
-  const name = (file?.name || "").toLowerCase();
-  const mimeType = (file?.mimeType || "").toLowerCase();
-  return mimeType.includes("pdf") || name.endsWith(".pdf");
+/* ─── Local storage (conversations / notifications / feedback) ─ */
+function loadLocalData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      return {
+        directShares:  Array.isArray(p.directShares)  ? p.directShares  : [],
+        conversations: Array.isArray(p.conversations)  ? p.conversations : [],
+        notifications: Array.isArray(p.notifications)  ? p.notifications : [],
+        feedbackForms: Array.isArray(p.feedbackForms)  ? p.feedbackForms : []
+      };
+    }
+  } catch {}
+  return { directShares: [], conversations: [], notifications: [], feedbackForms: [] };
+}
+function saveLocalData() {
+  const local = loadLocalData(); // preserve teacher-side data
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    ...local,
+    directShares, conversations, notifications, feedbackForms
+  }));
 }
 
-function downloadSharedFile(file) {
-  if (!file?.dataUrl) return toast("This file is not available for download.");
-  const link = document.createElement("a");
-  link.href = file.dataUrl;
-  link.download = file.name || "shared-file";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+/* ─── Navigation ─────────────────────────────────────────────── */
+function showSection(id) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll("nav a").forEach(a => a.classList.remove("active"));
+  const section = document.getElementById(id);
+  const navLink = document.querySelector(`nav a[data-target="${id}"]`);
+  if (section) section.classList.add("active");
+  if (navLink) navLink.classList.add("active");
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
+document.querySelectorAll("nav a, .cta-row .btn, .grid-3 .btn, .item .btn").forEach(link => {
+  link.addEventListener("click", () => {
+    const target = link.getAttribute("data-target");
+    if (target) showSection(target);
+  });
+});
 
-function openSharedFile(file) {
-  if (!file?.dataUrl) return toast("This file cannot be opened.");
-  if (isPdfFile(file)) {
-    pdfTitle.textContent = file.name || "PDF Document";
-    pdfFrame.src = file.dataUrl;
-    pdfReader.classList.remove("hidden");
+/* ─── Apply profile ──────────────────────────────────────────── */
+function applyStudentProfile(user) {
+  if (!user || user.role?.toLowerCase().trim() !== "student") {
+    window.location.href = "../Login/index.html";
     return;
   }
-  window.open(file.dataUrl, "_blank", "noopener,noreferrer");
+  const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set("studentRolePill",   `Logged in as ${user.username}`);
+  set("studentWelcome",    `Welcome back, ${fullName || user.username}!`);
+  set("studentIntro",      "Track your attendance, view shared files, and communicate with your teachers.");
+  set("studentNameCard",   fullName || "Student");
+  set("studentCredentials",`Username: ${user.username} · Student ID: ${user.userId}`);
+  set("studentPhone",      `${user.email || ""} · ${user.phone || ""}`);
 }
 
-function hidePdfReader() {
-  pdfReader.classList.add("hidden");
-  pdfFrame.src = "";
-}
-
-function getCurrentStudentRecord(sharedData = loadSharedData()) {
-  if (!currentUser) return null;
-  const fullName = `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim().toLowerCase();
-  for (const classItem of sharedData.classes) {
-    for (const student of classItem.students) {
-      const sameName = fullName && student.name.toLowerCase() === fullName;
-      const samePhone = currentUser.phone && student.mobile && student.mobile.trim() === currentUser.phone.trim();
-      const sameId = currentUser.userId && student.id && student.id.toLowerCase() === currentUser.userId.toLowerCase();
-      if (sameName || samePhone || sameId) {
-        return { classItem, student };
-      }
-    }
-  }
-  return null;
-}
-
-function getStudentAttendanceEntries(sharedData, match) {
-  if (!match) return [];
-  return sharedData.attendanceRecords
-    .map((record) => {
-      const present = record.present?.some((student) => student.id === match.student.id);
-      const absent = record.absent?.some((student) => student.id === match.student.id);
-      if (!present && !absent) return null;
-      return {
-        classCode: record.classCode,
-        className: record.className,
-        date: record.date,
-        status: present ? "Present" : "Absent"
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
-}
-
-function getAttendanceStats(entries) {
-  const total = entries.length;
-  const present = entries.filter((entry) => entry.status === "Present").length;
-  const absent = total - present;
-  const percent = total ? Math.round((present / total) * 100) : 0;
-  return { total, present, absent, percent };
-}
-
+/* ─── Render Classes (using backend data) ────────────────────── */
 function renderStudentClasses() {
-  const sharedData = loadSharedData();
-  const match = getCurrentStudentRecord(sharedData);
-  const attendanceEntries = getStudentAttendanceEntries(sharedData, match);
+  if (!studentClassesList) return;
   studentClassesList.innerHTML = "";
 
-  const ownClasses = sharedData.classes;
-  studentClassCount.textContent = `${ownClasses.length} active`;
-
-  if (!ownClasses.length) {
-    studentClassesList.innerHTML = '<div class="item column"><strong>No courses yet</strong><p>Your teacher has not linked your student account to a class record yet.</p></div>';
+  if (!enrolledClasses.length) {
+    if (studentClassCount) studentClassCount.textContent = "0 active";
+    studentClassesList.innerHTML = '<div class="item column"><strong>No courses yet</strong><p>Your teacher has not added you to a class yet. Ask them to add you using your Student ID: <strong>' + (currentUser?.userId || "—") + '</strong></p></div>';
     return;
   }
 
-  ownClasses.forEach((course, index) => {
-    const courseEntries = attendanceEntries.filter((entry) => entry.classCode === course.code);
-    const courseStats = getAttendanceStats(courseEntries);
-    const schedule = ["Mon 9:00 AM", "Tue 11:00 AM", "Wed 3:00 PM", "Thu 10:30 AM", "Fri 4:00 PM"][index % 5];
+  if (studentClassCount) studentClassCount.textContent = `${enrolledClasses.length} active`;
+
+  enrolledClasses.forEach((course, index) => {
+    const attEntries = getAttendanceEntriesForStudent(course.id);
+    const stats      = getAttendanceStats(attEntries);
+    const teacherName = course.teacher ? `${course.teacher.firstName} ${course.teacher.lastName}`.trim() : "Teacher";
+    const schedule    = ["Mon 9:00 AM", "Tue 11:00 AM", "Wed 3:00 PM", "Thu 10:30 AM", "Fri 4:00 PM"][index % 5];
+    const enrolled    = course.students ? course.students.length : 0;
     const card = document.createElement("div");
     card.className = "item";
     card.innerHTML = `
       <div>
         <strong>${course.name}</strong>
-        <p>Course code ${course.code} · ${course.students.length} students enrolled</p>
-        <div class="progress"><span style="width:${courseStats.percent}%;"></span></div>
+        <p>Code: <code>${course.code}</code> · ${enrolled} enrolled · Teacher: ${teacherName}</p>
+        <div class="progress"><span style="width:${stats.percent}%;"></span></div>
       </div>
-      <span class="chip">${courseStats.percent}% · Next: ${schedule}</span>
-    `;
+      <div style="text-align:right;">
+        <span class="chip">${stats.percent}% attendance</span>
+        ${course.teacher?.id ? `<br><button class="chat-btn" style="margin-top:6px;" onclick="openMessageTeacher(${JSON.stringify({ teacherDbId: course.teacher.id, teacherName: teacherName, teacherUserId: course.teacher.userId, classCode: course.code, className: course.name })})">💬 Message Teacher</button>` : ""}
+      </div>`;
     studentClassesList.appendChild(card);
   });
 }
 
+/* ─── Render Files ───────────────────────────────────────────── */
+function isPdfFile(file) {
+  const name = (file?.name || "").toLowerCase();
+  const mime = (file?.mimeType || "").toLowerCase();
+  return mime.includes("pdf") || name.endsWith(".pdf");
+}
+function downloadSharedFile(file) {
+  if (!file?.dataUrl) return toast("No download available.", "error");
+  const link = document.createElement("a");
+  link.href = file.dataUrl; link.download = file.name || "file";
+  document.body.appendChild(link); link.click(); link.remove();
+}
+function openSharedFile(file) {
+  if (!file?.dataUrl) return toast("File cannot be opened.", "error");
+  if (isPdfFile(file)) { pdfTitle.textContent = file.name; pdfFrame.src = file.dataUrl; pdfReader.classList.remove("hidden"); return; }
+  window.open(file.dataUrl, "_blank", "noopener,noreferrer");
+}
+function hidePdfReader() { pdfReader.classList.add("hidden"); pdfFrame.src = ""; }
+
 function renderStudentFiles() {
-  const { shared } = loadSharedData();
+  if (!studentFileList) return;
   studentFileList.innerHTML = "";
 
-  if (!shared.length) {
-    studentFileList.innerHTML = '<div class="item column"><strong>No shared files yet</strong><p>Files uploaded by the teacher will appear here automatically.</p></div>';
+  if (!sharedFiles.length) {
+    studentFileList.innerHTML = '<div class="item column"><strong>No shared files yet</strong><p>Files shared by your teachers will appear here.</p></div>';
     return;
   }
 
-  shared.forEach((item) => {
+  sharedFiles.forEach(item => {
     const card = document.createElement("div");
     card.className = "item column";
     const attachments = Array.isArray(item.attachments) ? item.attachments : [];
-    const fileLabel = attachments.length ? attachments.map((file) => file.name).join(", ") : (item.files || "No attachment");
+    const label = attachments.length ? attachments.map(f => f.name).join(", ") : (item.files || "No attachment");
+    const teacherName = item.teacher ? `${item.teacher.firstName} ${item.teacher.lastName}`.trim() : "";
     card.innerHTML = `
-      <div class="file-head"><span class="${getBadgeClass(item.type)}">${item.type}</span><strong>${item.title}</strong></div>
-      <p>${item.class} · ${fileLabel}</p>
+      <div class="file-head">
+        <span class="${getBadgeClass(item.type)}">${item.type}</span>
+        <strong>${item.title}</strong>
+      </div>
+      <p>${item.class || ""}${teacherName ? " · " + teacherName : ""} · ${label}</p>
       <p>${item.notes || "No notes added."}</p>
-      <div class="cta-row"></div>
-    `;
+      <div class="cta-row"></div>`;
     const actions = card.querySelector(".cta-row");
     if (!attachments.length) {
-      const button = document.createElement("button");
-      button.className = "btn secondary";
-      button.textContent = "No File";
-      button.disabled = true;
-      actions.appendChild(button);
+      const btn = document.createElement("button");
+      btn.className = "btn secondary"; btn.textContent = "No File"; btn.disabled = true;
+      actions.appendChild(btn);
     } else {
-      attachments.forEach((file) => {
-        const openButton = document.createElement("button");
-        openButton.className = "btn secondary";
-        openButton.textContent = isPdfFile(file) ? `Read ${file.name}` : `Open ${file.name}`;
-        openButton.addEventListener("click", () => openSharedFile(file));
-        actions.appendChild(openButton);
-
-        const downloadButton = document.createElement("button");
-        downloadButton.className = "btn secondary";
-        downloadButton.textContent = `Download ${file.name}`;
-        downloadButton.addEventListener("click", () => downloadSharedFile(file));
-        actions.appendChild(downloadButton);
+      attachments.forEach(file => {
+        const openBtn = document.createElement("button");
+        openBtn.className = "btn secondary";
+        openBtn.textContent = isPdfFile(file) ? `Read ${file.name}` : `Open ${file.name}`;
+        openBtn.addEventListener("click", () => openSharedFile(file));
+        actions.appendChild(openBtn);
+        const dlBtn = document.createElement("button");
+        dlBtn.className = "btn secondary"; dlBtn.textContent = `Download ${file.name}`;
+        dlBtn.addEventListener("click", () => downloadSharedFile(file));
+        actions.appendChild(dlBtn);
       });
     }
     studentFileList.appendChild(card);
   });
 }
 
-function renderPersonalUpdates() {
-  const sharedData = loadSharedData();
-  const match = getCurrentStudentRecord(sharedData);
-  studentPersonalUpdates.innerHTML = "";
+/* ─── Attendance (from backend API records) ──────────────────── */
+let apiAttendanceRecords = []; // raw from /api/attendance/student/:id
+
+function getAttendanceEntriesForStudent(classId) {
+  // classId = DB int id  OR  undefined to get all classes
+  return apiAttendanceRecords
+    .filter(r => classId === undefined || r.attendance.class?.id === classId)
+    .map(r => ({
+      classCode: r.attendance.class?.code || "",
+      className: r.attendance.class?.name || "",
+      date: r.attendance.date?.split("T")[0] || "",
+      status: r.status === "present" ? "Present" : "Absent"
+    }))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+function getAttendanceStats(entries) {
+  const total   = entries.length;
+  const present = entries.filter(e => e.status === "Present").length;
+  return { total, present, absent: total - present, percent: total ? Math.round((present / total) * 100) : 0 };
+}
+
+function renderAttendance() {
+  const entries = getAttendanceEntriesForStudent();
+  const stats   = getAttendanceStats(entries);
+
+  if (attendanceOverallPercent) attendanceOverallPercent.textContent = `${stats.percent}%`;
+  if (attendancePresentDays)    attendancePresentDays.textContent    = String(stats.present);
+  if (attendanceAbsentDays)     attendanceAbsentDays.textContent     = String(stats.absent);
+  if (attendanceLogCount)       attendanceLogCount.textContent       = `${entries.length} entr${entries.length === 1 ? "y" : "ies"}`;
+  if (!attendanceLogList) return;
+  attendanceLogList.innerHTML = "";
+
+  // Calendar
+  const monthDate    = new Date(currentYear, currentMonth, 1);
+  const monthLbl     = document.getElementById("monthLabel");
+  if (monthLbl) monthLbl.textContent = `${monthDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}`;
+  const daysInMonth  = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const calContainer = document.getElementById("calendarDays");
+  if (calContainer) {
+    calContainer.innerHTML = "";
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dv   = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const dayE = entries.filter(e => e.date === dv);
+      const div  = document.createElement("div");
+      div.className = "day";
+      div.textContent = day;
+      if (dayE.some(e => e.status === "Absent"))  div.classList.add("absent");
+      else if (dayE.some(e => e.status === "Present")) div.classList.add("present");
+      else div.classList.add("neutral");
+      div.addEventListener("click", () => {
+        if (!dayE.length) { toast(`No record for ${formatDate(dv)}.`); return; }
+        toast(dayE.map(e => `${e.className}: ${e.status}`).join(" | "));
+      });
+      calContainer.appendChild(div);
+    }
+  }
+
+  if (!entries.length) {
+    attendanceLogList.innerHTML = '<div class="item column"><strong>No attendance records yet</strong><p>Your teacher has not saved attendance for your account yet.</p></div>';
+    return;
+  }
+
+  entries.forEach(entry => {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `
+      <div><strong>${entry.className}</strong><p>${formatDate(entry.date)}</p></div>
+      <span class="chip ${entry.status === 'Present' ? 'present' : 'absent'}">${entry.status}</span>`;
+    attendanceLogList.appendChild(row);
+  });
+}
+
+/* ─── Messaging ──────────────────────────────────────────────── */
+function openMessageTeacher(ctx) {
+  // ctx = { teacherDbId, teacherName, teacherUserId, classCode, className }
+  if (typeof ctx === "string") ctx = JSON.parse(ctx);
+  activeTeacherCtx = ctx;
+
+  // Update chat UI header
+  const header = document.getElementById("chatTeacherName");
+  const meta   = document.getElementById("chatTeacherMeta");
+  if (header) header.textContent = ctx.teacherName || "Teacher";
+  if (meta)   meta.textContent   = ctx.className || "";
+
+  showSection("messages");
+  renderStudentChat();
+  // Load from backend
+  loadMessagesFromTeacher(ctx.teacherDbId);
+}
+
+async function loadMessagesFromTeacher(teacherDbId) {
+  if (!teacherDbId || !getToken()) return;
+  try {
+    const res = await fetch(API_BASE + `/api/messages/${teacherDbId}`, {
+      headers: { "Authorization": "Bearer " + getToken() }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    apiMessages[teacherDbId] = data;
+    renderStudentChat();
+  } catch (e) { console.warn("[loadMessages]", e); }
+}
+
+function renderStudentChat() {
+  if (!studentChatThread) return;
   studentChatThread.innerHTML = "";
 
-  if (!match) {
-    studentPersonalStatus.textContent = "Profile not linked";
-    personalUpdateCount.textContent = "0 items";
-    studentConversationStatus.textContent = "No linked student record";
-    studentPersonalUpdates.innerHTML = '<div class="item column"><strong>We could not match your account to a class record yet.</strong><p>Your teacher can still message you once your registered name or phone matches the student list.</p></div>';
-    studentChatThread.innerHTML = '<div class="item column"><strong>No conversation available yet</strong><p>Ask your teacher to add you with the same name or phone number used during signup.</p></div>';
+  const messages = activeTeacherCtx
+    ? (apiMessages[activeTeacherCtx.teacherDbId] || [])
+    : [];
+
+  if (studentConversationStatus) {
+    studentConversationStatus.textContent = activeTeacherCtx
+      ? (messages.length ? `${messages.length} messages` : "No messages yet")
+      : "Pick a class to message the teacher";
+  }
+
+  if (!activeTeacherCtx) {
+    studentChatThread.innerHTML = '<div class="item column"><strong>Select a class</strong><p>Go to My Classes and tap "Message Teacher" to open a conversation.</p></div>';
+    return;
+  }
+  if (!messages.length) {
+    studentChatThread.innerHTML = '<div class="item column"><strong>No messages yet</strong><p>Send a message to your teacher below.</p></div>';
     return;
   }
 
-  const personalItems = sharedData.directShares
-    .filter((item) => item.studentId === match.student.id)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  const conversation = sharedData.conversations.find((item) => item.studentId === match.student.id && item.classCode === match.classItem.code);
-
-  studentPersonalStatus.textContent = `${match.classItem.name} · ${match.student.id}`;
-  personalUpdateCount.textContent = `${personalItems.length} item${personalItems.length === 1 ? "" : "s"}`;
-  studentConversationStatus.textContent = conversation?.messages?.length ? `${conversation.messages.length} messages` : "No chat yet";
-
-  if (!personalItems.length) {
-    studentPersonalUpdates.innerHTML = '<div class="item column"><strong>No personal updates yet</strong><p>Marks, individual files, and teacher notes will appear here.</p></div>';
-  } else {
-    personalItems.forEach((item) => {
-      const card = document.createElement("div");
-      card.className = "personal-card";
-      const attachmentNames = item.attachments?.length ? item.attachments.map((file) => file.name).join(", ") : "No attachment";
-      const marksText = item.marks != null ? `<p><strong>Marks:</strong> ${item.marks}</p>` : "";
-      card.innerHTML = `<div class="file-head"><span class="badge">${item.type}</span><strong>${item.title}</strong></div><p>${item.className} · ${formatTimestamp(item.createdAt)}</p>${marksText}<p>${item.notes || "No notes added."}</p><p class="muted-note">${attachmentNames}</p><div class="cta-row"></div>`;
-      const actions = card.querySelector(".cta-row");
-      (item.attachments || []).forEach((file) => {
-        const openButton = document.createElement("button");
-        openButton.className = "btn secondary";
-        openButton.textContent = isPdfFile(file) ? `Read ${file.name}` : `Open ${file.name}`;
-        openButton.addEventListener("click", () => openSharedFile(file));
-        actions.appendChild(openButton);
-
-        const downloadButton = document.createElement("button");
-        downloadButton.className = "btn secondary";
-        downloadButton.textContent = `Download ${file.name}`;
-        downloadButton.addEventListener("click", () => downloadSharedFile(file));
-        actions.appendChild(downloadButton);
-      });
-      studentPersonalUpdates.appendChild(card);
-    });
-  }
-
-  if (!conversation?.messages?.length) {
-    studentChatThread.innerHTML = '<div class="item column"><strong>No messages yet</strong><p>Your teacher can start the conversation from the teacher student list.</p></div>';
-    return;
-  }
-
-  conversation.messages.forEach((message) => {
+  messages.forEach(msg => {
+    const isMe = msg.sender?.id === currentUser?.id || msg.sender?.userId === currentUser?.userId;
     const bubble = document.createElement("div");
-    bubble.className = `chat-bubble ${message.senderRole}`;
-    bubble.innerHTML = `<span class="chat-meta">${message.senderName} · ${formatTimestamp(message.createdAt)}</span><div>${message.text}</div>`;
+    bubble.className = `chat-bubble ${isMe ? "teacher" : "student"}`; // repurpose classes for self/other
+    const senderName = `${msg.sender?.firstName || ""} ${msg.sender?.lastName || ""}`.trim() || "You";
+    bubble.innerHTML = `<span class="chat-meta">${senderName} · ${formatTimestamp(msg.createdAt)}</span><div>${msg.text}</div>`;
     studentChatThread.appendChild(bubble);
   });
   studentChatThread.scrollTop = studentChatThread.scrollHeight;
 }
 
+async function sendReplyToTeacher() {
+  const text = studentReplyMessage?.value.trim();
+  if (!text) return toast("Type a message first", "error");
+
+  if (!activeTeacherCtx) {
+    return toast("Open a class first, then tap 'Message Teacher'", "error");
+  }
+
+  const teacherDbId = activeTeacherCtx.teacherDbId;
+  if (!teacherDbId) return toast("Cannot find teacher account", "error");
+
+  // Optimistic local message
+  const tempMsg = {
+    id: null,
+    sender:   { id: currentUser.id, userId: currentUser.userId, firstName: currentUser.firstName, lastName: currentUser.lastName, role: "student" },
+    receiver: { id: teacherDbId, role: "teacher" },
+    text,
+    createdAt: new Date().toISOString()
+  };
+  if (!apiMessages[teacherDbId]) apiMessages[teacherDbId] = [];
+  apiMessages[teacherDbId].push(tempMsg);
+  studentReplyMessage.value = "";
+  renderStudentChat();
+
+  // Also mirror into localStorage conversations for teacher-side cross-tab
+  let conv = conversations.find(c => c.studentId === currentUser.userId && c.classCode === activeTeacherCtx.classCode);
+  if (!conv) {
+    conv = { id: `conv-${activeTeacherCtx.classCode}-${currentUser.userId}`, classCode: activeTeacherCtx.classCode, studentId: currentUser.userId, studentName: `${currentUser.firstName} ${currentUser.lastName}`.trim(), messages: [] };
+    conversations.push(conv);
+  }
+  conv.messages.push({ senderRole: "student", senderName: `${currentUser.firstName} ${currentUser.lastName}`.trim(), senderUserId: currentUser.userId, text, createdAt: tempMsg.createdAt });
+  saveLocalData();
+
+  // Backend
+  try {
+    const res = await fetch(API_BASE + "/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+      body: JSON.stringify({ receiverId: teacherDbId, text })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      tempMsg.id = data.id;
+      toast("Message sent!", "success");
+    } else {
+      const d = await res.json();
+      toast(d.error || "Failed to send message", "error");
+    }
+  } catch (e) {
+    toast("Network error — message saved locally only", "error");
+  }
+}
+
+/* ─── Personal Updates (direct shares from teacher) ─────────── */
+function getStudentDirectShares() {
+  if (!currentUser) return [];
+  return directShares
+    .filter(d => d.studentId === currentUser.userId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function renderPersonalUpdates() {
+  if (!studentPersonalUpdates) return;
+  studentPersonalUpdates.innerHTML = "";
+
+  const items = getStudentDirectShares();
+  if (personalUpdateCount) personalUpdateCount.textContent = `${items.length} item${items.length !== 1 ? "s" : ""}`;
+  if (studentPersonalStatus) {
+    studentPersonalStatus.textContent = enrolledClasses.length
+      ? enrolledClasses.map(c => c.name).join(", ")
+      : "No classes yet";
+  }
+
+  if (!items.length) {
+    studentPersonalUpdates.innerHTML = '<div class="item column"><strong>No personal updates yet</strong><p>Marks, files, and notes shared directly by your teacher will appear here.</p></div>';
+  } else {
+    items.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "personal-card";
+      const aNames  = item.attachments?.length ? item.attachments.map(f => f.name).join(", ") : "No attachment";
+      const mText   = item.marks != null ? `<p><strong>Marks:</strong> ${item.marks}</p>` : "";
+      card.innerHTML = `
+        <div class="file-head"><span class="badge">${item.type}</span><strong>${item.title}</strong></div>
+        <p>${item.className} · ${formatTimestamp(item.createdAt)}</p>
+        ${mText}<p>${item.notes || "No notes."}</p>
+        <p class="muted-note">${aNames}</p><div class="cta-row"></div>`;
+      const actions = card.querySelector(".cta-row");
+      (item.attachments || []).forEach(file => {
+        const openBtn = document.createElement("button");
+        openBtn.className = "btn secondary"; openBtn.textContent = isPdfFile(file) ? `Read ${file.name}` : `Open ${file.name}`;
+        openBtn.addEventListener("click", () => openSharedFile(file)); actions.appendChild(openBtn);
+        const dlBtn = document.createElement("button");
+        dlBtn.className = "btn secondary"; dlBtn.textContent = `Download ${file.name}`;
+        dlBtn.addEventListener("click", () => downloadSharedFile(file)); actions.appendChild(dlBtn);
+      });
+      studentPersonalUpdates.appendChild(card);
+    });
+  }
+}
+
+/* ─── Feedback Forms ─────────────────────────────────────────── */
 function renderFeedbackForms() {
-  const sharedData = loadSharedData();
-  const match = getCurrentStudentRecord(sharedData);
+  if (!studentFeedbackForms) return;
   studentFeedbackForms.innerHTML = "";
 
-  if (!match) {
-    feedbackFormCount.textContent = "0 forms";
-    studentFeedbackForms.innerHTML = '<div class="item column"><strong>No feedback forms yet</strong><p>Your account needs to be linked to a student record first.</p></div>';
-    return;
-  }
-
-  const forms = sharedData.feedbackForms
-    .filter((form) => form.studentId === match.student.id)
+  const forms = feedbackForms
+    .filter(f => f.studentId === currentUser?.userId)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  feedbackFormCount.textContent = `${forms.length} form${forms.length === 1 ? "" : "s"}`;
+  if (feedbackFormCount) feedbackFormCount.textContent = `${forms.length} form${forms.length !== 1 ? "s" : ""}`;
 
   if (!forms.length) {
-    studentFeedbackForms.innerHTML = '<div class="item column"><strong>No feedback forms waiting</strong><p>When your teacher sends class feedback requests, they will appear here.</p></div>';
+    studentFeedbackForms.innerHTML = '<div class="item column"><strong>No feedback forms yet</strong><p>When your teacher sends feedback requests, they will appear here.</p></div>';
     return;
   }
 
-  forms.forEach((form) => {
+  forms.forEach(form => {
     const card = document.createElement("div");
     card.className = "feedback-form-card";
-    const completedText = form.response?.trim()
-      ? `<p><strong>Your response:</strong> ${form.response}</p><p class="muted-note">Submitted on ${formatTimestamp(form.respondedAt)}</p>`
-      : "";
+    const done = form.response?.trim();
     card.innerHTML = `
-      <div class="file-head">
-        <span class="badge">${form.classCode}</span>
-        <strong>${form.title}</strong>
-      </div>
+      <div class="file-head"><span class="badge">${form.classCode}</span><strong>${form.title}</strong></div>
       <p>${form.className} · ${formatTimestamp(form.createdAt)}</p>
       <p>${form.prompt}</p>
-      ${completedText}
-      <textarea id="feedback-response-${form.id}" placeholder="Write your feedback for the class here" ${form.response ? "disabled" : ""}></textarea>
-      <button class="btn secondary submit-feedback-btn" data-feedback-id="${form.id}" ${form.response ? "disabled" : ""}>${form.response ? "Submitted" : "Submit Feedback"}</button>
-    `;
+      ${done ? `<p><strong>Your response:</strong> ${form.response}</p><p class="muted-note">Submitted ${formatTimestamp(form.respondedAt)}</p>` : ""}
+      <textarea id="feedback-response-${form.id}" placeholder="Write your feedback here" ${done ? "disabled" : ""}></textarea>
+      <button class="btn secondary submit-feedback-btn" data-feedback-id="${form.id}" ${done ? "disabled" : ""}>${done ? "Submitted" : "Submit Feedback"}</button>`;
     studentFeedbackForms.appendChild(card);
   });
-}
-
-function renderNotifications() {
-  const sharedData = loadSharedData();
-  const match = getCurrentStudentRecord(sharedData);
-  const notifications = match
-    ? sharedData.notifications
-      .filter((item) => item.studentId === match.student.id)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    : [];
-
-  const unread = notifications.filter((item) => !item.read).length;
-  notificationBadge.textContent = unread;
-  notificationBadge.classList.toggle("hidden", unread === 0);
-  notificationPanelStatus.textContent = `${unread} unread`;
-  notificationList.innerHTML = "";
-
-  if (!notifications.length) {
-    notificationList.innerHTML = '<div class="item column"><strong>No notifications yet</strong><p>Teacher updates, attendance edits, and feedback alerts will show up here.</p></div>';
-    return;
-  }
-
-  notifications.forEach((item) => {
-    const card = document.createElement("div");
-    card.className = `notification-card${item.read ? "" : " unread"}`;
-    card.innerHTML = `<strong>${item.title}</strong><p>${item.message}</p><p class="muted-note">${formatTimestamp(item.createdAt)}</p>`;
-    notificationList.appendChild(card);
-  });
-}
-
-function markNotificationsRead() {
-  const sharedData = loadSharedData();
-  const match = getCurrentStudentRecord(sharedData);
-  if (!match) return;
-  let changed = false;
-  sharedData.notifications.forEach((item) => {
-    if (item.studentId === match.student.id && !item.read) {
-      item.read = true;
-      changed = true;
-    }
-  });
-  if (changed) saveSharedData(sharedData);
-  renderNotifications();
-}
-
-function toggleNotifications() {
-  const willOpen = notificationPanel.classList.contains("hidden");
-  notificationPanel.classList.toggle("hidden", !willOpen);
-  notificationToggle.setAttribute("aria-expanded", String(willOpen));
-  if (willOpen) markNotificationsRead();
-}
-
-function renderAttendance() {
-  const sharedData = loadSharedData();
-  const match = getCurrentStudentRecord(sharedData);
-  const entries = getStudentAttendanceEntries(sharedData, match);
-  const stats = getAttendanceStats(entries);
-
-  attendanceOverallPercent.textContent = `${stats.percent}%`;
-  attendancePresentDays.textContent = String(stats.present);
-  attendanceAbsentDays.textContent = String(stats.absent);
-  attendanceLogCount.textContent = `${entries.length} entr${entries.length === 1 ? "y" : "ies"}`;
-  attendanceLogList.innerHTML = "";
-
-  if (!match) {
-    document.getElementById("monthLabel").textContent = "Month view";
-    document.getElementById("calendarDays").innerHTML = "";
-    attendanceLogList.innerHTML = '<div class="item column"><strong>No attendance record available</strong><p>Your account is not yet linked to a student record.</p></div>';
-    return;
-  }
-
-  const monthDate = new Date(currentYear, currentMonth, 1);
-  document.getElementById("monthLabel").textContent = `Month view · ${monthDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}`;
-
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const container = document.getElementById("calendarDays");
-  container.innerHTML = "";
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const dateValue = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const dayEntries = entries.filter((entry) => entry.date === dateValue);
-    const div = document.createElement("div");
-    div.className = "day";
-    div.textContent = day;
-
-    if (dayEntries.some((entry) => entry.status === "Absent")) {
-      div.classList.add("absent");
-    } else if (dayEntries.some((entry) => entry.status === "Present")) {
-      div.classList.add("present");
-    } else {
-      div.classList.add("neutral");
-    }
-
-    div.addEventListener("click", () => {
-      if (!dayEntries.length) {
-        toast(`No saved attendance record for ${formatDate(dateValue)}.`);
-        return;
-      }
-      const summary = dayEntries.map((entry) => `${entry.className}: ${entry.status}`).join(" | ");
-      toast(`${formatDate(dateValue)} · ${summary}`);
-    });
-    container.appendChild(div);
-  }
-
-  if (!entries.length) {
-    attendanceLogList.innerHTML = '<div class="item column"><strong>No saved attendance yet</strong><p>Your teacher has not saved any attendance records for your account yet.</p></div>';
-    return;
-  }
-
-  entries.forEach((entry) => {
-    const row = document.createElement("div");
-    row.className = "item";
-    row.innerHTML = `
-      <div>
-        <strong>${entry.className}</strong>
-        <p>${formatDate(entry.date)}</p>
-      </div>
-      <span class="chip">${entry.status}</span>
-    `;
-    attendanceLogList.appendChild(row);
-  });
-}
-
-function sendReplyToTeacher() {
-  const message = studentReplyMessage.value.trim();
-  if (!message) return toast("Type a reply first");
-
-  const sharedData = loadSharedData();
-  const match = getCurrentStudentRecord(sharedData);
-  if (!match) return toast("Your account is not linked to a student record yet");
-
-  let conversation = sharedData.conversations.find((item) => item.studentId === match.student.id && item.classCode === match.classItem.code);
-  if (!conversation) {
-    conversation = {
-      id: `conv-${match.classItem.code}-${match.student.id}`,
-      classCode: match.classItem.code,
-      studentId: match.student.id,
-      studentName: match.student.name,
-      messages: []
-    };
-    sharedData.conversations.push(conversation);
-  }
-
-  conversation.messages.push({
-    senderRole: "student",
-    senderName: `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() || currentUser.username,
-    senderUserId: currentUser.userId,
-    text: message,
-    createdAt: new Date().toISOString()
-  });
-
-  saveSharedData(sharedData);
-  studentReplyMessage.value = "";
-  renderPersonalUpdates();
-  toast("Reply sent");
 }
 
 function submitFeedbackForm(feedbackId) {
   const textarea = document.getElementById(`feedback-response-${feedbackId}`);
   const response = textarea?.value.trim();
-  if (!response) return toast("Write your feedback before submitting.");
+  if (!response) return toast("Write your feedback before submitting.", "error");
 
-  const sharedData = loadSharedData();
-  const feedback = sharedData.feedbackForms.find((item) => item.id === feedbackId);
-  if (!feedback) return toast("Feedback form not found.");
+  const form = feedbackForms.find(f => f.id === feedbackId);
+  if (!form) return toast("Feedback form not found.", "error");
 
-  feedback.response = response;
-  feedback.respondedAt = new Date().toISOString();
-  saveSharedData(sharedData);
+  form.response    = response;
+  form.respondedAt = new Date().toISOString();
+  saveLocalData();
   renderFeedbackForms();
-  toast("Feedback submitted");
+  toast("Feedback submitted!", "success");
 }
 
-document.getElementById("prevMonth").addEventListener("click", () => {
-  if (currentMonth === 0) {
-    currentMonth = 11;
-    currentYear -= 1;
-  } else {
-    currentMonth -= 1;
+/* ─── Notifications ──────────────────────────────────────────── */
+function renderNotifications() {
+  const userNotifs = notifications
+    .filter(n => n.studentId === currentUser?.userId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const unread = userNotifs.filter(n => !n.read).length;
+  if (notificationBadge)      { notificationBadge.textContent = unread; notificationBadge.classList.toggle("hidden", unread === 0); }
+  if (notificationPanelStatus) notificationPanelStatus.textContent = `${unread} unread`;
+  if (!notificationList) return;
+  notificationList.innerHTML = "";
+
+  if (!userNotifs.length) {
+    notificationList.innerHTML = '<div class="item column"><strong>No notifications yet</strong><p>Attendance updates and teacher messages will show up here.</p></div>';
+    return;
   }
+
+  userNotifs.forEach(n => {
+    const card = document.createElement("div");
+    card.className = `notification-card${n.read ? "" : " unread"}`;
+    card.innerHTML = `<strong>${n.title}</strong><p>${n.message}</p><p class="muted-note">${formatTimestamp(n.createdAt)}</p>`;
+    notificationList.appendChild(card);
+  });
+}
+
+function markNotificationsRead() {
+  let changed = false;
+  notifications.forEach(n => {
+    if (n.studentId === currentUser?.userId && !n.read) { n.read = true; changed = true; }
+  });
+  if (changed) saveLocalData();
+  renderNotifications();
+}
+function toggleNotifications() {
+  const willOpen = notificationPanel?.classList.contains("hidden");
+  notificationPanel?.classList.toggle("hidden", !willOpen);
+  notificationToggle?.setAttribute("aria-expanded", String(willOpen));
+  if (willOpen) markNotificationsRead();
+}
+
+/* ─── Calendar month controls ────────────────────────────────── */
+document.getElementById("prevMonth")?.addEventListener("click", () => {
+  if (currentMonth === 0) { currentMonth = 11; currentYear--; } else currentMonth--;
+  renderAttendance();
+});
+document.getElementById("nextMonth")?.addEventListener("click", () => {
+  if (currentMonth === 11) { currentMonth = 0; currentYear++; } else currentMonth++;
   renderAttendance();
 });
 
-document.getElementById("nextMonth").addEventListener("click", () => {
-  if (currentMonth === 11) {
-    currentMonth = 0;
-    currentYear += 1;
-  } else {
-    currentMonth += 1;
-  }
-  renderAttendance();
-});
-
+/* ─── Event wiring ───────────────────────────────────────────── */
 if (sendStudentReply) sendStudentReply.addEventListener("click", sendReplyToTeacher);
-if (closePdfReader) closePdfReader.addEventListener("click", hidePdfReader);
+if (closePdfReader)   closePdfReader.addEventListener("click", hidePdfReader);
 if (notificationToggle) notificationToggle.addEventListener("click", toggleNotifications);
 if (studentFeedbackForms) {
-  studentFeedbackForms.addEventListener("click", (event) => {
-    const button = event.target.closest(".submit-feedback-btn");
-    if (!button) return;
-    submitFeedbackForm(button.getAttribute("data-feedback-id"));
+  studentFeedbackForms.addEventListener("click", evt => {
+    const btn = evt.target.closest(".submit-feedback-btn");
+    if (btn) submitFeedbackForm(btn.dataset.feedbackId);
   });
 }
-
-if (pdfReader) {
-  pdfReader.addEventListener("click", (event) => {
-    if (event.target === pdfReader) hidePdfReader();
+if (pdfReader) pdfReader.addEventListener("click", evt => { if (evt.target === pdfReader) hidePdfReader(); });
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = "../Login/index.html";
   });
 }
-
-document.addEventListener("click", (event) => {
-  if (!event.target.closest(".notification-shell") && notificationPanel) {
+document.addEventListener("click", evt => {
+  if (!evt.target.closest(".notification-shell") && notificationPanel) {
     notificationPanel.classList.add("hidden");
     notificationToggle?.setAttribute("aria-expanded", "false");
   }
 });
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
+document.addEventListener("keydown", evt => {
+  if (evt.key === "Escape") {
     if (pdfReader && !pdfReader.classList.contains("hidden")) hidePdfReader();
     notificationPanel?.classList.add("hidden");
     notificationToggle?.setAttribute("aria-expanded", "false");
   }
 });
+// Sync across tabs (teacher on same browser)
+window.addEventListener("storage", evt => {
+  if (evt.key !== STORAGE_KEY) return;
+  const local = loadLocalData();
+  directShares.splice(0,  directShares.length,  ...local.directShares);
+  conversations.splice(0, conversations.length, ...local.conversations);
+  notifications.splice(0, notifications.length, ...local.notifications);
+  feedbackForms.splice(0, feedbackForms.length,  ...local.feedbackForms);
+  renderPersonalUpdates();
+  renderFeedbackForms();
+  renderNotifications();
+});
 
-window.addEventListener("storage", (event) => {
-  if (event.key !== STORAGE_KEY) return;
+/* ─── Backend Initializer ────────────────────────────────────── */
+async function initializeBackend() {
+  const token = getToken();
+  if (!token) { console.warn("No token — cannot load backend data"); return; }
+  showSpinner(true);
+  try {
+    // Fetch enrolled classes (backend filters by student)
+    const [classesRes, filesRes] = await Promise.all([
+      fetch(API_BASE + "/api/classes", { headers: { "Authorization": "Bearer " + token } }),
+      fetch(API_BASE + "/api/files",   { headers: { "Authorization": "Bearer " + token } })
+    ]);
+
+    if (classesRes.ok) {
+      const data = await classesRes.json();
+      enrolledClasses.splice(0, enrolledClasses.length, ...data);
+      renderStudentClasses();
+    } else {
+      const d = await classesRes.json();
+      console.warn("[classes]", d.error);
+    }
+
+    if (filesRes.ok) {
+      const data = await filesRes.json();
+      sharedFiles.splice(0, sharedFiles.length, ...data.map(f => ({
+        id:       f.id,
+        title:    f.title,
+        type:     f.type,
+        notes:    f.notes,
+        class:    f.class?.name || "",
+        classCode:f.class?.code || "",
+        teacher:  f.teacher || null,
+        files:    f.fileUrl || "No attachment",
+        attachments: [] // file content not stored on server side yet
+      })));
+      renderStudentFiles();
+    }
+
+    // Fetch attendance records for this student
+    if (currentUser?.id) {
+      const attRes = await fetch(API_BASE + `/api/attendance/student/${currentUser.id}`, {
+        headers: { "Authorization": "Bearer " + token }
+      });
+      if (attRes.ok) {
+        apiAttendanceRecords = await attRes.json();
+        renderAttendance();
+        renderStudentClasses(); // re-render with updated stats
+      }
+    }
+
+  } catch (err) {
+    console.warn("[initializeBackend]", err);
+    toast("Could not fetch data from server", "error");
+  }
+  showSpinner(false);
+}
+
+/* ─── Live polling (messages every 15s) ──────────────────────── */
+let pollingInterval = null;
+function startPolling() {
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(() => {
+    if (activeTeacherCtx?.teacherDbId) loadMessagesFromTeacher(activeTeacherCtx.teacherDbId);
+  }, 15000);
+}
+
+/* ─── Messages section helper ────────────────────────────────── */
+// Also handle "Reply" button click from messages section when no activeContext
+if (sendStudentReply) {
+  sendStudentReply.addEventListener("click", () => {
+    if (!activeTeacherCtx) {
+      toast("Go to My Classes and tap 'Message Teacher' to start a conversation", "error");
+      return;
+    }
+  });
+}
+
+/* ─── Init ───────────────────────────────────────────────────── */
+(function init() {
+  // Load local data first (conversations, notifications, feedback, directShares)
+  const local = loadLocalData();
+  directShares.splice(0,  directShares.length,  ...local.directShares);
+  conversations.splice(0, conversations.length, ...local.conversations);
+  notifications.splice(0, notifications.length, ...local.notifications);
+  feedbackForms.splice(0, feedbackForms.length,  ...local.feedbackForms);
+
+  // Apply profile (redirects if not student)
+  applyStudentProfile(currentUser);
+
+  // Initial render with empty state
   renderStudentClasses();
   renderStudentFiles();
   renderPersonalUpdates();
   renderFeedbackForms();
   renderNotifications();
   renderAttendance();
-});
+  renderStudentChat();
+  showSection("home");
 
-async function initializeBackend() {
-  try {
-    const token = localStorage.getItem('attendance360Token');
-    if (!token) return;
-    
-    // Fetch classes (Returns classes with teacher info and potentially files)
-    const classesRes = await fetch(API_BASE + '/api/classes', {
-        headers: { 'Authorization': 'Bearer ' + token }
-    });
-    const classesData = await classesRes.json();
-    
-    // Fetch all files
-    const filesRes = await fetch(API_BASE + '/api/files', {
-        headers: { 'Authorization': 'Bearer ' + token }
-    });
-    const filesData = await filesRes.json();
-
-    // Fetch messages to/from this user (we'll fetch general conversation later or ignore for now)
-    
-    let sharedData = loadSharedData();
-    
-    if (classesRes.ok) {
-        sharedData.classes = classesData.map(c => ({
-            id: c.id,
-            name: c.name,
-            code: c.code,
-            students: c.students ? c.students.map(cs => ({ id: cs.student.userId, name: cs.student.firstName + " " + cs.student.lastName, mobile: cs.student.phone })) : [],
-            files: []
-        }));
-    }
-
-    if (filesRes.ok) {
-        sharedData.shared = filesData.map(f => ({
-            id: f.id,
-            title: f.title,
-            type: f.type,
-            class: f.class ? f.class.name : '',
-            classCode: f.class ? f.class.code : '',
-            notes: f.notes,
-            files: f.fileUrl || "No attachment"
-        }));
-    }
-
-    saveSharedData(sharedData);
-
-    renderStudentClasses();
-    renderStudentFiles();
-    renderPersonalUpdates();
-    renderFeedbackForms();
-    renderNotifications();
-    renderAttendance();
-
-  } catch (err) {
-    console.warn("Failed to init backend data", err);
-  }
-}
-
-renderStudentClasses();
-renderStudentFiles();
-renderPersonalUpdates();
-renderFeedbackForms();
-renderNotifications();
-renderAttendance();
-showSection("home");
-applyStudentProfile(currentUser);
-
-if (logoutBtn) {
-  logoutBtn.addEventListener("click", () => {
-    localStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem('attendance360Token');
-    window.location.href = "../Login/index.html";
-  });
-}
-
-initializeBackend();
+  // Hit backend to get real data
+  initializeBackend().then(() => startPolling());
+})();

@@ -3,8 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Attendance360 · Student</title>
+  <title>Attendance360 · Student Dashboard</title>
+  <meta name="description" content="Attendance360 Student Dashboard — track attendance, view classes, and message your teachers.">
   <link rel="stylesheet" href="style.css">
+  <style>
+    @keyframes slideInToast {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spinnerSlide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .chat-btn {
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.4);
+      color: #a5b4fc;
+      border-radius: 8px;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      transition: background 0.2s;
+    }
+    .chat-btn:hover { background: rgba(99,102,241,0.3); }
+    .messages-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px 12px 0 0;
+    }
+    .messages-header strong { font-size: 1rem; }
+    .messages-header p { margin: 0; font-size: 0.8rem; color: var(--muted, #8899aa); }
+    .chip.present { background: rgba(22,163,74,0.2); color: #4ade80; border-color: rgba(74,222,128,0.3); }
+    .chip.absent  { background: rgba(220,38,38,0.2);  color: #f87171; border-color: rgba(248,113,113,0.3); }
+  </style>
 </head>
 <body>
   <header>
@@ -13,10 +46,10 @@
       <nav>
         <a data-target="home" class="active">Home</a>
         <a data-target="classes">My Classes</a>
+        <a data-target="messages">Messages</a>
         <a data-target="attendance">Attendance</a>
-        <a data-target="quizzes">Quizzes</a>
         <a data-target="files">Files</a>
-        <a data-target="calendar">Academic Calendar</a>
+        <a data-target="calendar">Calendar</a>
       </nav>
       <div class="notification-shell">
         <button id="notificationToggle" class="notification-btn" type="button" aria-haspopup="true" aria-expanded="false">
@@ -31,7 +64,7 @@
           <div id="notificationList" class="list compact-list"></div>
         </div>
       </div>
-      <button id="logoutBtn" class="btn secondary" style="margin-left: 6px; color: #ff7878; border-color: rgba(255,120,120,0.4); background: rgba(255,120,120,0.1); display: inline-flex; align-items: center; gap: 8px; font-size: 14px; padding: 10px 16px;">
+      <button id="logoutBtn" class="btn secondary" style="margin-left:6px;color:#ff7878;border-color:rgba(255,120,120,0.4);background:rgba(255,120,120,0.1);display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:10px 16px;">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 22H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h5"></path><polyline points="17 16 21 12 17 8"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         Logout
       </button>
@@ -39,21 +72,19 @@
   </header>
 
   <main class="page">
+
+    <!-- HOME -->
     <section class="section active" id="home">
       <div class="hero card" style="grid-template-columns: 1.2fr 0.8fr;">
         <div>
           <div class="pill" id="studentRolePill">Logged in as Student</div>
           <h1 id="studentWelcome">Welcome back, Student!</h1>
-          <p id="studentIntro">Pick where you want to go: classes, attendance, quizzes, or files. Each opens in its own focused view.</p>
+          <p id="studentIntro">Track your attendance, view shared files, and communicate with your teachers from one dashboard.</p>
           <div class="cta-row">
             <button class="btn secondary" data-target="classes">My Classes</button>
+            <button class="btn secondary" data-target="messages">Messages</button>
             <button class="btn secondary" data-target="attendance">Attendance</button>
-            <button class="btn secondary" data-target="quizzes">Quizzes</button>
             <button class="btn secondary" data-target="files">Files</button>
-          </div>
-          <div class="status-row">
-            <span class="pill"><span class="status-dot"></span> Today: Present</span>
-            <span class="pill">Streak: 8 days</span>
           </div>
           <div class="list">
             <div class="item column">
@@ -70,7 +101,7 @@
               <div class="icon-bubble">C</div>
               <div>
                 <strong>Classes</strong>
-                <p>Open your active subjects</p>
+                <p>Your enrolled courses</p>
                 <button class="btn secondary" data-target="classes">Open</button>
               </div>
             </div>
@@ -83,11 +114,11 @@
               </div>
             </div>
             <div class="item inline">
-              <div class="icon-bubble">F</div>
+              <div class="icon-bubble">M</div>
               <div>
-                <strong>Files</strong>
-                <p>Class files and personal updates</p>
-                <button class="btn secondary" data-target="files">Open</button>
+                <strong>Messages</strong>
+                <p>Talk to your teacher</p>
+                <button class="btn secondary" data-target="messages">Open</button>
               </div>
             </div>
           </div>
@@ -95,14 +126,43 @@
       </div>
     </section>
 
+    <!-- MY CLASSES -->
     <section class="section card" id="classes">
-      <div class="section-head">
-        <h2>My Classes</h2>
+      <div class="section-head wrap">
+        <div>
+          <h2>My Classes</h2>
+          <p class="muted">All courses your teacher has enrolled you in. Click "Message Teacher" to chat.</p>
+        </div>
         <span class="chip" id="studentClassCount">0 active</span>
       </div>
       <div class="list" id="studentClassesList"></div>
     </section>
 
+    <!-- MESSAGES -->
+    <section class="section card" id="messages">
+      <div class="section-head wrap">
+        <div>
+          <h2>Messages</h2>
+          <p class="muted">Open a conversation from <strong>My Classes</strong> → tap "💬 Message Teacher" on any course card.</p>
+        </div>
+        <span class="chip" id="studentConversationStatus">No active chat</span>
+      </div>
+
+      <div class="messages-header" id="chatHeader">
+        <div>
+          <strong id="chatTeacherName">Select a class to start chatting</strong>
+          <p id="chatTeacherMeta">Go to My Classes → Message Teacher</p>
+        </div>
+      </div>
+
+      <div id="studentChatThread" class="chat-thread" style="margin-top:0; border-top-left-radius:0; border-top-right-radius:0;"></div>
+
+      <label for="studentReplyMessage">Your message</label>
+      <textarea id="studentReplyMessage" placeholder="Type your message to the teacher…"></textarea>
+      <button id="sendStudentReply" class="btn" type="button">Send Message</button>
+    </section>
+
+    <!-- ATTENDANCE -->
     <section class="section card" id="attendance">
       <div class="section-head wrap">
         <h2>Attendance</h2>
@@ -126,7 +186,7 @@
           <p>Absent days</p>
         </div>
       </div>
-      <p>Green = present, Red = absent, Blue = no saved class record.</p>
+      <p class="muted">Green = present · Red = absent · Neutral = no saved record.</p>
       <div id="calendarDays" class="calendar"></div>
       <div class="legend">
         <span><span class="legend-swatch present"></span> Present</span>
@@ -142,41 +202,18 @@
       </div>
     </section>
 
-    <section class="section card" id="quizzes">
-      <div class="section-head">
-        <h2>Quizzes</h2>
-        <span class="chip">Prep & schedule</span>
-      </div>
-      <div class="quiz-grid">
-        <div class="quiz-card">
-          <div class="quiz-top">
-            <div class="icon-bubble alt">W</div>
-            <div><strong>Web Tech</strong><p>Apr 18 · Project Demo</p></div>
-          </div>
-          <span class="badge">Team</span>
-          <p>Upload repo link + slides.</p>
-        </div>
-        <div class="quiz-card">
-          <div class="quiz-top">
-            <div class="icon-bubble">M</div>
-            <div><strong>Machine Learning</strong><p>Apr 12 · MCQ</p></div>
-          </div>
-          <span class="badge soft">Practice</span>
-          <p>Topics: regression, SVM, bias/variance.</p>
-        </div>
-      </div>
-    </section>
-
+    <!-- FILES & PERSONAL -->
     <section class="section card" id="files">
       <div class="section-head wrap">
-        <h2>Files & Teacher Connect</h2>
+        <h2>Files &amp; Personal Updates</h2>
         <span class="chip" id="studentPersonalStatus">Auto-sync</span>
       </div>
 
       <div class="files-stack">
         <div>
           <h3>Shared Files</h3>
-          <div class="grid-2" id="studentFileList"></div>
+          <p class="muted">Files shared to your classes by teachers.</p>
+          <div class="list" id="studentFileList"></div>
         </div>
 
         <div>
@@ -184,6 +221,7 @@
             <h3>Personal Updates</h3>
             <span class="chip" id="personalUpdateCount">0 items</span>
           </div>
+          <p class="muted">Marks, individual notes, and files from your teacher.</p>
           <div id="studentPersonalUpdates" class="list"></div>
         </div>
 
@@ -194,38 +232,30 @@
           </div>
           <div id="studentFeedbackForms" class="list"></div>
         </div>
-
-        <div>
-          <div class="section-head wrap">
-            <h3>Chat With Teacher</h3>
-            <span class="chip" id="studentConversationStatus">No chat yet</span>
-          </div>
-          <div id="studentChatThread" class="chat-thread"></div>
-          <label for="studentReplyMessage">Reply to teacher</label>
-          <textarea id="studentReplyMessage" placeholder="Type your reply here"></textarea>
-          <button id="sendStudentReply" class="btn" type="button">Send Reply</button>
-        </div>
       </div>
     </section>
 
+    <!-- ACADEMIC CALENDAR -->
     <section class="section card" id="calendar">
       <div class="section-head">
         <h2>Academic Calendar</h2>
-        <span class="chip">Jan-Jun 2026 (Even Sem)</span>
+        <span class="chip">Even Sem · Jan–Jun 2026</span>
       </div>
       <div class="list">
         <div class="item column"><strong>Online Semester Registration</strong><p>5 Jan 2026</p></div>
         <div class="item column"><strong>Teaching Starts</strong><p>8 Jan 2026</p></div>
-        <div class="item column"><strong>Minor-I (Theory Courses)</strong><p>16-20 Feb 2026</p></div>
-        <div class="item column"><strong>Minor-II (Theory Courses)</strong><p>24-28 Mar 2026</p></div>
-        <div class="item column"><strong>Semester Proficiency Assessment</strong><p>1-2 Apr 2026</p></div>
+        <div class="item column"><strong>Minor-I (Theory Courses)</strong><p>16–20 Feb 2026</p></div>
+        <div class="item column"><strong>Minor-II (Theory Courses)</strong><p>24–28 Mar 2026</p></div>
+        <div class="item column"><strong>Semester Proficiency Assessment</strong><p>1–2 Apr 2026</p></div>
         <div class="item column"><strong>Teaching Ends</strong><p>1 May 2026</p></div>
       </div>
     </section>
+
   </main>
 
   <footer>Attendance360 · Student Portal · Stay on time, stay ahead.</footer>
 
+  <!-- PDF Reader Modal -->
   <div id="pdfReader" class="pdf-modal hidden">
     <div class="pdf-modal-content">
       <div class="pdf-modal-head">

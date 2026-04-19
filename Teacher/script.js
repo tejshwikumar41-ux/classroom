@@ -1,1061 +1,1011 @@
+/* ============================================================
+   Attendance360 — Teacher Portal Script
+   ============================================================ */
+
 const STORAGE_KEY = "attendance360-shared-data";
 const USERS_KEY = "attendance360Users";
 const SESSION_KEY = "attendance360CurrentUser";
+const TOKEN_KEY = "attendance360Token";
 const TEACHER_NOTIFICATION_STATE_KEY = "attendance360TeacherNotificationState";
 
 let API_BASE = "";
-if (window.location.protocol === "file:" || ((window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") && window.location.port !== "3000")) {
+// When running from file:// or local dev port != 3000, point to deployed API
+if (
+  window.location.protocol === "file:" ||
+  ((window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") &&
+    window.location.port !== "3000")
+) {
   API_BASE = "https://classroom-seven-beta.vercel.app";
 }
 
-const defaultShared = [];
-const defaultAttendanceRecords = [];
-const defaultDirectShares = [];
-const defaultConversations = [];
-const defaultNotifications = [];
-const defaultFeedbackForms = [];
-
-const savedData = loadSharedData();
-const classes = savedData.classes;
-const shared = savedData.shared;
-const attendanceRecords = savedData.attendanceRecords;
-const directShares = savedData.directShares;
-const conversations = savedData.conversations;
-const notifications = savedData.notifications;
-const feedbackForms = savedData.feedbackForms;
-
-const studentSearchInput = document.getElementById("studentSearch");
-const attendanceDateInput = document.getElementById("attendanceDate");
-const attendanceSearchInput = document.getElementById("attendanceSearch");
-const studentListEl = document.getElementById("studentList");
-const fileListEl = document.getElementById("fileList");
-const fileUpload = document.getElementById("fileUpload");
-const personalShareUpload = document.getElementById("personalShareUpload");
-const sendFeedbackFormsButton = document.getElementById("sendFeedbackForms");
-const feedbackClassSelect = document.getElementById("feedbackClass");
-const teacherNotificationToggle = document.getElementById("teacherNotificationToggle");
-const teacherNotificationBadge = document.getElementById("teacherNotificationBadge");
-const teacherNotificationPanel = document.getElementById("teacherNotificationPanel");
-const teacherNotificationList = document.getElementById("teacherNotificationList");
-const teacherNotificationStatus = document.getElementById("teacherNotificationStatus");
-const teacherNotificationIcon = document.querySelector("#teacherNotificationToggle .notification-icon");
-const teacherNotificationStatusInline = document.getElementById("teacherNotificationStatusInline");
-
-const profileToggle = document.getElementById("profileToggle");
-const profileDropdown = document.getElementById("profileDropdown");
-const openEditProfileButton = document.getElementById("openEditProfile");
-const openTeacherPasswordPage = document.getElementById("openTeacherPasswordPage");
-const logoutButton = document.getElementById("logoutButton");
-const editProfileModal = document.getElementById("editProfileModal");
-const closeEditProfileButton = document.getElementById("closeEditProfile");
-const cancelEditProfileButton = document.getElementById("cancelEditProfile");
-const saveProfileButton = document.getElementById("saveProfileButton");
-
-const studentConnectModal = document.getElementById("studentConnectModal");
-const closeStudentConnect = document.getElementById("closeStudentConnect");
-const connectStudentName = document.getElementById("connectStudentName");
-const connectStudentMeta = document.getElementById("connectStudentMeta");
-const teacherChatThread = document.getElementById("teacherChatThread");
-const teacherChatMessage = document.getElementById("teacherChatMessage");
-const sendTeacherMessage = document.getElementById("sendTeacherMessage");
-const callStudentButton = document.getElementById("callStudentButton");
-const personalShareTitle = document.getElementById("personalShareTitle");
-const personalShareType = document.getElementById("personalShareType");
-const personalShareMarks = document.getElementById("personalShareMarks");
-const personalShareNotes = document.getElementById("personalShareNotes");
-const sharePersonalUpdate = document.getElementById("sharePersonalUpdate");
-const personalSharePicked = document.getElementById("personalSharePicked");
-const teacherStudentResources = document.getElementById("teacherStudentResources");
-const studentResourceCount = document.getElementById("studentResourceCount");
+/* ─── State ─────────────────────────────────────────────────── */
+let classes = [];
+let shared = [];
+let attendanceRecords = [];
+let directShares = [];
+let conversations = [];
+let notifications = [];
+let feedbackForms = [];
 
 let currentUser = getCurrentUser();
 let activeStudentContext = null;
 
+/* ─── Cached DOM refs ────────────────────────────────────────── */
+const studentSearchInput     = document.getElementById("studentSearch");
+const attendanceDateInput    = document.getElementById("attendanceDate");
+const attendanceSearchInput  = document.getElementById("attendanceSearch");
+const studentListEl          = document.getElementById("studentList");
+const fileListEl             = document.getElementById("fileList");
+const fileUpload             = document.getElementById("fileUpload");
+const personalShareUpload    = document.getElementById("personalShareUpload");
+const sendFeedbackFormsButton= document.getElementById("sendFeedbackForms");
+const feedbackClassSelect    = document.getElementById("feedbackClass");
+const teacherNotificationToggle  = document.getElementById("teacherNotificationToggle");
+const teacherNotificationBadge   = document.getElementById("teacherNotificationBadge");
+const teacherNotificationPanel   = document.getElementById("teacherNotificationPanel");
+const teacherNotificationList    = document.getElementById("teacherNotificationList");
+const teacherNotificationStatus  = document.getElementById("teacherNotificationStatus");
+const teacherNotificationIcon    = document.querySelector("#teacherNotificationToggle .notification-icon");
+const teacherNotificationStatusInline = document.getElementById("teacherNotificationStatusInline");
+
+const profileToggle          = document.getElementById("profileToggle");
+const profileDropdown        = document.getElementById("profileDropdown");
+const openEditProfileButton  = document.getElementById("openEditProfile");
+const openTeacherPasswordPage= document.getElementById("openTeacherPasswordPage");
+const logoutButton           = document.getElementById("logoutButton");
+const editProfileModal       = document.getElementById("editProfileModal");
+const closeEditProfileButton = document.getElementById("closeEditProfile");
+const cancelEditProfileButton= document.getElementById("cancelEditProfile");
+const saveProfileButton      = document.getElementById("saveProfileButton");
+
+const studentConnectModal    = document.getElementById("studentConnectModal");
+const closeStudentConnect    = document.getElementById("closeStudentConnect");
+const connectStudentName     = document.getElementById("connectStudentName");
+const connectStudentMeta     = document.getElementById("connectStudentMeta");
+const teacherChatThread      = document.getElementById("teacherChatThread");
+const teacherChatMessage     = document.getElementById("teacherChatMessage");
+const sendTeacherMessage     = document.getElementById("sendTeacherMessage");
+const callStudentButton      = document.getElementById("callStudentButton");
+const personalShareTitle     = document.getElementById("personalShareTitle");
+const personalShareType      = document.getElementById("personalShareType");
+const personalShareMarks     = document.getElementById("personalShareMarks");
+const personalShareNotes     = document.getElementById("personalShareNotes");
+const sharePersonalUpdate    = document.getElementById("sharePersonalUpdate");
+const personalSharePicked    = document.getElementById("personalSharePicked");
+const teacherStudentResources= document.getElementById("teacherStudentResources");
+const studentResourceCount   = document.getElementById("studentResourceCount");
+
+/* ─── Helpers ────────────────────────────────────────────────── */
 function getCurrentUser() {
-  try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
-  } catch (error) {
-    console.warn("Failed to load current user", error);
-    return null;
-  }
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }
+  catch { return null; }
 }
-
-function getUsers() {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-  } catch (error) {
-    console.warn("Failed to load users", error);
-    return [];
-  }
-}
-
-function saveUsers(users) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
-function persistCurrentUser(user) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-}
-
-function getTeacherNotificationSeenMap() {
-  try {
-    return JSON.parse(localStorage.getItem(TEACHER_NOTIFICATION_STATE_KEY) || "{}");
-  } catch (error) {
-    console.warn("Failed to load teacher notification state", error);
-    return {};
-  }
-}
-
-function getTeacherNotificationSeenAt() {
-  if (!currentUser?.userId) return "";
-  const map = getTeacherNotificationSeenMap();
-  return map[currentUser.userId] || "";
-}
-
-function markTeacherNotificationsRead() {
-  if (!currentUser?.userId) return;
-  const map = getTeacherNotificationSeenMap();
-  map[currentUser.userId] = new Date().toISOString();
-  localStorage.setItem(TEACHER_NOTIFICATION_STATE_KEY, JSON.stringify(map));
-}
+function getToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
+function persistCurrentUser(u) { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); }
 
 function getDisplayName(user) {
-  const fullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
-  return fullName || user?.username || "Teacher";
+  const full = `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
+  return full || user?.username || "Teacher";
 }
 
-function applyTeacherProfile(user) {
-  if (!user || user.role?.toLowerCase().trim() !== "teacher") {
-    window.location.href = "../Login/index.html";
-    return;
+/* ─── Toast (colored + longer) ───────────────────────────────── */
+function toast(msg, type = "default") {
+  const colors = {
+    success: { bg: "rgba(22,163,74,0.95)", border: "rgba(74,222,128,0.4)" },
+    error:   { bg: "rgba(220,38,38,0.95)", border: "rgba(248,113,113,0.4)" },
+    default: { bg: "rgba(15,24,40,0.95)",  border: "rgba(255,255,255,0.12)" }
+  };
+  const c = colors[type] || colors.default;
+  const note = document.createElement("div");
+  note.textContent = msg;
+  note.className = "toast";
+  Object.assign(note.style, {
+    position: "fixed", bottom: "24px", right: "24px",
+    padding: "12px 18px", background: c.bg, color: "#f0f5ff",
+    border: `1px solid ${c.border}`, borderRadius: "12px",
+    boxShadow: "0 12px 40px rgba(0,0,0,0.5)", zIndex: "90",
+    maxWidth: "340px", fontSize: "0.9rem", lineHeight: "1.4",
+    animation: "slideInToast 0.3s ease"
+  });
+  document.body.appendChild(note);
+  setTimeout(() => {
+    note.style.opacity = "0";
+    note.style.transition = "opacity 0.3s";
+    setTimeout(() => note.remove(), 300);
+  }, 3500);
+}
+
+function showSpinner(show = true) {
+  let el = document.getElementById("globalSpinner");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "globalSpinner";
+    el.innerHTML = '<div class="spinner-inner"></div>';
+    Object.assign(el.style, {
+      position: "fixed", top: 0, left: 0, right: 0, height: "3px",
+      zIndex: "999", display: "none"
+    });
+    document.body.prepend(el);
   }
-
-  const displayName = getDisplayName(user);
-  const rolePill = document.getElementById("teacherRolePill");
-  const welcome = document.getElementById("teacherWelcome");
-  const intro = document.getElementById("teacherIntro");
-  const summary = document.getElementById("teacherSummary");
-  const name = document.getElementById("teacherName");
-  const usernameText = document.getElementById("teacherUsernameText");
-  const credentials = document.getElementById("teacherCredentials");
-  const phone = document.getElementById("teacherPhone");
-  const profileDisplayName = document.getElementById("profileDisplayName");
-  const profileUsername = document.getElementById("profileUsername");
-  const profileAvatar = document.getElementById("profileAvatar");
-
-  if (rolePill) rolePill.textContent = `Logged in as ${user.username}`;
-  if (welcome) welcome.textContent = `Welcome back, ${displayName}!`;
-  if (intro) intro.textContent = "Use your teacher account to manage classes, share files, take attendance, and connect with students individually.";
-  if (summary) summary.textContent = `Username: ${user.username} · Teacher ID: ${user.userId}`;
-  if (name) name.textContent = displayName;
-  if (usernameText) usernameText.textContent = `Username: ${user.username}`;
-  if (credentials) credentials.textContent = `Teacher ID: ${user.userId} · ${user.email}`;
-  if (phone) phone.textContent = user.phone ? `Phone: ${user.phone}` : "Phone not added";
-  if (profileDisplayName) profileDisplayName.textContent = displayName;
-  if (profileUsername) profileUsername.textContent = `@${user.username}`;
-  if (profileAvatar) profileAvatar.textContent = (displayName[0] || "T").toUpperCase();
+  el.style.display = show ? "block" : "none";
 }
 
-function loadSharedData() {
+function formatTimestamp(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleString("en-IN", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "numeric", minute: "2-digit"
+  });
+}
+function formatAttendanceDate(value) {
+  if (!value) return "No date";
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", {
+    day: "numeric", month: "short", year: "numeric"
+  });
+}
+
+/* ─── Shared Data (localStorage fallback) ───────────────────── */
+function loadLocalData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw);
+      const p = JSON.parse(raw);
       return {
-        classes: [], // Always fetch from backend
-        shared: [], // Always fetch from backend
-        attendanceRecords: [], // Always fetch from backend
-        directShares: Array.isArray(parsed.directShares) ? parsed.directShares : [],
-        conversations: Array.isArray(parsed.conversations) ? parsed.conversations : [],
-        notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
-        feedbackForms: Array.isArray(parsed.feedbackForms) ? parsed.feedbackForms : []
+        directShares:  Array.isArray(p.directShares)  ? p.directShares  : [],
+        conversations: Array.isArray(p.conversations)  ? p.conversations : [],
+        notifications: Array.isArray(p.notifications)  ? p.notifications : [],
+        feedbackForms: Array.isArray(p.feedbackForms)  ? p.feedbackForms : []
       };
     }
-  } catch (error) {
-    console.warn("Failed to load shared data", error);
-  }
-
-  return {
-    classes: [],
-    shared: [],
-    attendanceRecords: [],
-    directShares: [],
-    conversations: [],
-    notifications: [],
-    feedbackForms: []
-  };
+  } catch {}
+  return { directShares: [], conversations: [], notifications: [], feedbackForms: [] };
 }
 
-function persistSharedData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ classes, shared, attendanceRecords, directShares, conversations, notifications, feedbackForms }));
+function persistLocalData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    classes, shared, attendanceRecords, directShares,
+    conversations, notifications, feedbackForms
+  }));
 }
 
-if (!localStorage.getItem(STORAGE_KEY)) {
-  persistSharedData();
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve({
-      name: file.name,
-      mimeType: file.type || "application/octet-stream",
-      dataUrl: reader.result
-    });
-    reader.onerror = () => reject(reader.error || new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
-}
-
-document.querySelectorAll("nav a").forEach((a) => {
-  a.addEventListener("click", () => {
-    const target = a.getAttribute("data-target");
-    if (target) showSection(target);
-  });
-});
-
-document.querySelectorAll("button[data-target]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const target = btn.getAttribute("data-target");
-    if (target) showSection(target);
-  });
-});
-
-if (fileUpload) {
-  fileUpload.addEventListener("change", () => {
-    const picked = fileUpload.files && fileUpload.files.length
-      ? Array.from(fileUpload.files).map((file) => file.name).join(", ")
-      : "No file chosen";
-    document.getElementById("filePicked").textContent = picked;
-  });
-}
-
-if (personalShareUpload) {
-  personalShareUpload.addEventListener("change", () => {
-    const picked = personalShareUpload.files && personalShareUpload.files.length
-      ? Array.from(personalShareUpload.files).map((file) => file.name).join(", ")
-      : "No file chosen";
-    personalSharePicked.textContent = picked;
-  });
-}
-
+/* ─── Navigation ─────────────────────────────────────────────── */
 function showSection(id) {
-  document.querySelectorAll(".section").forEach((sec) => sec.classList.remove("active"));
-  document.querySelectorAll("nav a").forEach((a) => a.classList.remove("active"));
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll("nav a").forEach(a => a.classList.remove("active"));
   const section = document.getElementById(id);
   const navLink = document.querySelector(`nav a[data-target="${id}"]`);
   if (section) section.classList.add("active");
   if (navLink) navLink.classList.add("active");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
+document.querySelectorAll("nav a").forEach(a => {
+  a.addEventListener("click", () => { if (a.dataset.target) showSection(a.dataset.target); });
+});
+document.querySelectorAll("button[data-target]").forEach(btn => {
+  btn.addEventListener("click", () => { if (btn.dataset.target) showSection(btn.dataset.target); });
+});
 
-function toast(msg) {
-  const note = document.createElement("div");
-  note.textContent = msg;
-  note.className = "toast";
-  note.style.position = "fixed";
-  note.style.bottom = "24px";
-  note.style.right = "24px";
-  note.style.padding = "12px 16px";
-  note.style.background = "rgba(15,24,40,0.92)";
-  note.style.color = "#e7eefc";
-  note.style.border = "1px solid rgba(255,255,255,0.12)";
-  note.style.borderRadius = "10px";
-  note.style.boxShadow = "0 12px 30px rgba(0,0,0,0.35)";
-  note.style.zIndex = "80";
-  document.body.appendChild(note);
-  setTimeout(() => note.remove(), 1800);
+/* ─── Apply Profile ──────────────────────────────────────────── */
+function applyTeacherProfile(user) {
+  if (!user || user.role?.toLowerCase().trim() !== "teacher") {
+    window.location.href = "../Login/index.html";
+    return;
+  }
+  const name = getDisplayName(user);
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set("teacherRolePill",    `Logged in as ${user.username}`);
+  set("teacherWelcome",     `Welcome back, ${name}!`);
+  set("teacherIntro",       "Manage classes, share files, record attendance, and connect with students from one dashboard.");
+  set("teacherSummary",     `Username: ${user.username} · Teacher ID: ${user.userId}`);
+  set("teacherName",        name);
+  set("teacherUsernameText",`Username: ${user.username}`);
+  set("teacherCredentials", `Teacher ID: ${user.userId} · ${user.email}`);
+  set("teacherPhone",       user.phone ? `Phone: ${user.phone}` : "Phone not added");
+  set("profileDisplayName", name);
+  set("profileUsername",    `@${user.username}`);
+  const av = document.getElementById("profileAvatar");
+  if (av) av.textContent = (name[0] || "T").toUpperCase();
 }
 
+/* ─── Class options refresh ──────────────────────────────────── */
 function refreshClassOptions() {
-  const selects = [document.getElementById("studentClass"), document.getElementById("fileClass"), document.getElementById("attClass"), document.getElementById("feedbackClass")];
-  selects.forEach((sel) => {
-    const previousValue = sel.value;
+  const selects = [
+    document.getElementById("studentClass"),
+    document.getElementById("fileClass"),
+    document.getElementById("attClass"),
+    document.getElementById("feedbackClass")
+  ];
+  selects.forEach(sel => {
+    if (!sel) return;
+    const prev = sel.value;
     sel.innerHTML = "";
     if (sel.id === "fileClass") {
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = "Select class";
-      placeholder.disabled = true;
-      placeholder.selected = true;
-      sel.appendChild(placeholder);
+      const ph = document.createElement("option");
+      ph.value = ""; ph.textContent = "Select class";
+      ph.disabled = true; ph.selected = !prev;
+      sel.appendChild(ph);
     }
-    classes.forEach((classItem) => {
+    classes.forEach(cls => {
       const opt = document.createElement("option");
-      opt.value = classItem.code;
-      opt.textContent = `${classItem.name} (${classItem.code})`;
+      opt.value = cls.code;
+      opt.textContent = `${cls.name} (${cls.code})`;
       sel.appendChild(opt);
     });
-    if (classes.some((classItem) => classItem.code === previousValue)) sel.value = previousValue;
+    if (classes.some(c => c.code === prev)) sel.value = prev;
   });
 }
 
-function getClassByCode(code) {
-  return classes.find((entry) => entry.code === code);
-}
+function getClassByCode(code) { return classes.find(c => c.code === code); }
+function getClassById(id)     { return classes.find(c => c.id === id); }
 
+/* ─── Attendance helpers ─────────────────────────────────────── */
 function getAttendanceRecord(classCode, date) {
-  return attendanceRecords.find((record) => record.classCode === classCode && record.date === date);
+  return attendanceRecords.find(r => r.classCode === classCode && r.date === date);
 }
-
 function getStudentAttendanceEntries(studentId, classCode = "") {
   return attendanceRecords
-    .map((record) => {
+    .map(record => {
       if (classCode && record.classCode !== classCode) return null;
-      const present = record.present?.some((student) => student.id === studentId);
-      const absent = record.absent?.some((student) => student.id === studentId);
+      const present = record.present?.some(s => s.id === studentId);
+      const absent  = record.absent?.some(s => s.id === studentId);
       if (!present && !absent) return null;
-      return {
-        classCode: record.classCode,
-        className: record.className,
-        date: record.date,
-        status: present ? "Present" : "Absent"
-      };
+      return { classCode: record.classCode, className: record.className, date: record.date, status: present ? "Present" : "Absent" };
     })
     .filter(Boolean)
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 }
-
 function getAttendanceStats(entries) {
   const total = entries.length;
-  const present = entries.filter((entry) => entry.status === "Present").length;
-  const absent = total - present;
-  const percent = total ? Math.round((present / total) * 100) : 0;
-  return { total, present, absent, percent };
+  const present = entries.filter(e => e.status === "Present").length;
+  return { total, present, absent: total - present, percent: total ? Math.round((present / total) * 100) : 0 };
 }
 
+/* ─── Notifications ──────────────────────────────────────────── */
 function pushNotification(studentId, title, message, type = "GENERAL") {
   notifications.unshift({
     id: `note-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    studentId,
-    title,
-    message,
-    type,
-    read: false,
+    studentId, title, message, type, read: false,
     createdAt: new Date().toISOString()
   });
 }
 
-function getEligibleFeedbackStudents(classCode) {
-  const classItem = getClassByCode(classCode);
-  if (!classItem) return [];
-  return classItem.students.filter((student) => {
-    const stats = getAttendanceStats(getStudentAttendanceEntries(student.id, classCode));
-    return stats.total > 0 && stats.percent > 60;
-  });
+function getTeacherNotificationSeenAt() {
+  if (!currentUser?.userId) return "";
+  try {
+    const m = JSON.parse(localStorage.getItem(TEACHER_NOTIFICATION_STATE_KEY) || "{}");
+    return m[currentUser.userId] || "";
+  } catch { return ""; }
 }
-
+function markTeacherNotificationsRead() {
+  if (!currentUser?.userId) return;
+  try {
+    const m = JSON.parse(localStorage.getItem(TEACHER_NOTIFICATION_STATE_KEY) || "{}");
+    m[currentUser.userId] = new Date().toISOString();
+    localStorage.setItem(TEACHER_NOTIFICATION_STATE_KEY, JSON.stringify(m));
+  } catch {}
+}
 function getTeacherNotificationItems() {
-  if (!currentUser?.userId) return [];
-
   const feedbackItems = feedbackForms
-    .filter((form) => form.teacherUserId === currentUser.userId && form.response?.trim() && form.respondedAt)
-    .map((form) => ({
-      id: `feedback-${form.id}`,
-      type: "feedback",
-      classCode: form.classCode,
-      title: `${form.studentName} submitted feedback`,
-      message: `${form.className}: ${form.title}`,
-      detail: form.response.trim(),
-      createdAt: form.respondedAt
+    .filter(f => f.teacherUserId === currentUser?.userId && f.response?.trim() && f.respondedAt)
+    .map(f => ({
+      id: `feedback-${f.id}`, type: "feedback", classCode: f.classCode,
+      title: `${f.studentName} submitted feedback`,
+      message: `${f.className}: ${f.title}`, detail: f.response.trim(), createdAt: f.respondedAt
     }));
-
-  const studentReplyItems = conversations.flatMap((conversation) =>
-    (conversation.messages || [])
-      .filter((message) => message.senderRole === "student")
-      .map((message, index) => ({
-        id: `reply-${conversation.id}-${index}`,
-        type: "reply",
-        classCode: conversation.classCode,
-        title: `${message.senderName} sent a reply`,
-        message: `${conversation.studentName} · ${getClassByCode(conversation.classCode)?.name || conversation.classCode}`,
-        detail: message.text,
-        createdAt: message.createdAt
+  const replyItems = conversations.flatMap(c =>
+    (c.messages || [])
+      .filter(m => m.senderRole === "student")
+      .map((m, i) => ({
+        id: `reply-${c.id}-${i}`, type: "reply", classCode: c.classCode,
+        title: `${m.senderName} sent a reply`,
+        message: `${c.studentName} · ${getClassByCode(c.classCode)?.name || c.classCode}`,
+        detail: m.text, createdAt: m.createdAt
       }))
   );
-
-  return [...feedbackItems, ...studentReplyItems]
-    .filter((item) => item.createdAt)
+  return [...feedbackItems, ...replyItems]
+    .filter(i => i.createdAt)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
-
 function renderTeacherNotifications() {
   if (!teacherNotificationList || !teacherNotificationBadge || !teacherNotificationStatus) return;
-
-  if (teacherNotificationIcon) teacherNotificationIcon.textContent = String.fromCodePoint(0x1F514);
+  if (teacherNotificationIcon) teacherNotificationIcon.textContent = "🔔";
   const items = getTeacherNotificationItems();
   const seenAt = getTeacherNotificationSeenAt();
-  const unreadCount = items.filter((item) => !seenAt || new Date(item.createdAt) > new Date(seenAt)).length;
-
-  teacherNotificationBadge.textContent = unreadCount;
-  teacherNotificationBadge.classList.toggle("hidden", unreadCount === 0);
-  teacherNotificationStatus.textContent = `${unreadCount} unread`;
+  const unread = items.filter(i => !seenAt || new Date(i.createdAt) > new Date(seenAt)).length;
+  teacherNotificationBadge.textContent = unread;
+  teacherNotificationBadge.classList.toggle("hidden", unread === 0);
+  teacherNotificationStatus.textContent = `${unread} unread`;
   if (teacherNotificationStatusInline) teacherNotificationStatusInline.textContent = `${items.length} total updates`;
   teacherNotificationList.innerHTML = "";
-
   if (!items.length) {
     teacherNotificationList.innerHTML = '<div class="item column"><strong>No notifications yet</strong><p>Student replies and submitted feedback will appear here.</p></div>';
     return;
   }
-
-  items.slice(0, 12).forEach((item) => {
+  items.slice(0, 12).forEach(item => {
     const isUnread = !seenAt || new Date(item.createdAt) > new Date(seenAt);
     const card = document.createElement("div");
     card.className = `notification-card${isUnread ? " unread" : ""}`;
     card.innerHTML = `<strong>${item.title}</strong><p>${item.message}</p><p>${item.detail}</p><p class="muted small">${formatTimestamp(item.createdAt)}</p>`;
     card.addEventListener("click", () => {
-      if (item.type === "feedback") {
-        if (feedbackClassSelect && item.classCode) feedbackClassSelect.value = item.classCode;
-        renderFeedbackEligibility();
-        renderTeacherFeedbackResponses();
-        showSection("feedback");
-      }
+      if (item.type === "feedback") { renderFeedbackEligibility(); renderTeacherFeedbackResponses(); showSection("feedback"); }
     });
     teacherNotificationList.appendChild(card);
   });
 }
-
 function toggleTeacherNotifications() {
   if (!teacherNotificationPanel || !teacherNotificationToggle) return;
   const willOpen = teacherNotificationPanel.classList.contains("hidden");
   teacherNotificationPanel.classList.toggle("hidden", !willOpen);
   teacherNotificationToggle.setAttribute("aria-expanded", String(willOpen));
-  if (willOpen) {
-    markTeacherNotificationsRead();
-    renderTeacherNotifications();
-  }
+  if (willOpen) { markTeacherNotificationsRead(); renderTeacherNotifications(); }
 }
 
+/* ─── Render Classes ─────────────────────────────────────────── */
 function renderClasses() {
   const list = document.getElementById("classList");
+  if (!list) return;
   list.innerHTML = "";
-  classes.forEach((classItem) => {
+  if (!classes.length) {
+    list.innerHTML = '<div class="empty-state">No classes created yet. Add your first class above.</div>';
+    refreshClassOptions();
+    return;
+  }
+  classes.forEach(cls => {
+    const stats = getAttendanceStats(cls.students.flatMap(s => getStudentAttendanceEntries(s.id, cls.code)));
     const div = document.createElement("div");
     div.className = "item";
-    const stats = getAttendanceStats(classItem.students.flatMap((student) => getStudentAttendanceEntries(student.id, classItem.code)));
-    div.innerHTML = `<div><strong>${classItem.name}</strong><p>Code: ${classItem.code} · ${classItem.students.length} students · Avg attendance ${stats.percent}%</p></div><span class="badge">Active</span>`;
+    div.innerHTML = `
+      <div>
+        <strong>${cls.name}</strong>
+        <p>Code: <code>${cls.code}</code> · ${cls.students.length} student${cls.students.length !== 1 ? "s" : ""} · Avg attendance ${stats.percent}%</p>
+      </div>
+      <span class="badge">Active</span>`;
     list.appendChild(div);
   });
   refreshClassOptions();
   renderAttendanceWorkspace();
   renderFeedbackEligibility();
 }
+
+/* ─── Create Class ───────────────────────────────────────────── */
 async function createClass() {
-  const name = document.getElementById("className").value.trim();
-  const code = document.getElementById("classCode").value.trim();
-  if (!name || !code) return toast("Add class name and code");
+  const nameEl = document.getElementById("className");
+  const codeEl = document.getElementById("classCode");
+  const name = nameEl.value.trim();
+  const code = codeEl.value.trim().toUpperCase();
+  if (!name || !code) return toast("Enter class name and code", "error");
 
   try {
-    const res = await fetch(API_BASE + '/api/classes', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + localStorage.getItem('attendance360Token')
-      },
+    showSpinner(true);
+    const res = await fetch(API_BASE + "/api/classes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
       body: JSON.stringify({ name, code })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
+    showSpinner(false);
 
-    classes.push({ id: data.id, name: data.name, code: data.code, students: [], files: [] });
-    persistSharedData();
-    document.getElementById("className").value = "";
-    document.getElementById("classCode").value = "";
+    if (!res.ok) {
+      toast(data.error || "Failed to create class", "error");
+      return;
+    }
+
+    // Avoid duplicates — remove if already exists locally (from previous failed sync)
+    const existIdx = classes.findIndex(c => c.id === data.id || c.code === data.code);
+    if (existIdx >= 0) classes.splice(existIdx, 1);
+
+    classes.unshift({ id: data.id, name: data.name, code: data.code, students: [], files: [] });
+    nameEl.value = "";
+    codeEl.value = "";
     renderClasses();
-    toast("Class created");
-  } catch (error) {
-    toast(error.message || "Failed to create class");
+    toast(`Class "${data.name}" created successfully!`, "success");
+  } catch (err) {
+    showSpinner(false);
+    toast("Network error: " + (err.message || "Could not reach server"), "error");
   }
 }
 
-function getConversation(classCode, studentId, studentName) {
-  let conversation = conversations.find((entry) => entry.classCode === classCode && entry.studentId === studentId);
-  if (!conversation) {
-    conversation = {
-      id: `conv-${classCode}-${studentId}`,
-      classCode,
-      studentId,
-      studentName,
-      messages: []
-    };
-    conversations.push(conversation);
-  }
-  return conversation;
-}
-
-function getStudentDirectShares(studentId) {
-  return directShares
-    .filter((entry) => entry.studentId === studentId)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-}
-
+/* ─── Render Students ────────────────────────────────────────── */
 function renderStudents() {
   const list = document.getElementById("studentList");
+  if (!list) return;
   const query = (studentSearchInput?.value || "").trim().toLowerCase();
   list.innerHTML = "";
-  let matches = 0;
+  let matchCount = 0;
 
-  classes.forEach((classItem) => {
-    classItem.students.forEach((student, idx) => {
-      const searchBlob = `${student.name} ${student.id} ${student.mobile}`.toLowerCase();
-      if (query && !searchBlob.includes(query)) return;
-      const studentShareCount = getStudentDirectShares(student.id).length;
-      const conversation = getConversation(classItem.code, student.id, student.name);
-      const replyCount = conversation.messages.filter((message) => message.senderRole === "student").length;
-      const attendanceStats = getAttendanceStats(getStudentAttendanceEntries(student.id, classItem.code));
+  classes.forEach(cls => {
+    cls.students.forEach((student, idx) => {
+      const blob = `${student.name} ${student.id} ${student.mobile || ""}`.toLowerCase();
+      if (query && !blob.includes(query)) return;
+      const shareCount = directShares.filter(d => d.studentId === student.id).length;
+      const conv = conversations.find(c => c.classCode === cls.code && c.studentId === student.id);
+      const replyCount = conv?.messages?.filter(m => m.senderRole === "student").length || 0;
+      const attStats = getAttendanceStats(getStudentAttendanceEntries(student.id, cls.code));
       const div = document.createElement("div");
       div.className = "item";
-      const marksText = student.marks != null ? ` · Marks: ${student.marks}` : "";
-      div.innerHTML = `<div><strong>${student.name}</strong><p>${classItem.name} · ${student.id} · ${student.mobile}${marksText}</p><p class="muted small">Attendance: ${attendanceStats.percent}% · Personal shares: ${studentShareCount} · Student replies: ${replyCount}</p></div>
+      div.innerHTML = `
+        <div>
+          <strong>${student.name}</strong>
+          <p>${cls.name} · <code>${student.id}</code> · ${student.mobile || "—"}</p>
+          <p class="muted small">Attendance: ${attStats.percent}% · Shares: ${shareCount} · Replies: ${replyCount}</p>
+        </div>
         <div class="item-actions">
-          <button class="chat-btn open-student-connect" data-class="${classItem.code}" data-idx="${idx}" aria-label="Open chat with ${student.name}">Chat</button>
-          <button class="danger-btn remove-student-btn" data-class="${classItem.code}" data-idx="${idx}" aria-label="Remove ${student.name}">Remove</button>
+          <button class="chat-btn open-student-connect" data-class="${cls.code}" data-idx="${idx}" aria-label="Chat with ${student.name}">Chat</button>
+          <button class="danger-btn remove-student-btn" data-class="${cls.code}" data-idx="${idx}" aria-label="Remove ${student.name}">Remove</button>
         </div>`;
       list.appendChild(div);
-      matches += 1;
+      matchCount++;
     });
   });
 
-  if (!matches) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    empty.textContent = query
-      ? "No student found for that name, ID, or mobile number."
-      : "No students added yet.";
-    list.appendChild(empty);
+  if (!matchCount) {
+    list.innerHTML = `<div class="empty-state">${query ? "No student matched that search." : "No students added yet."}</div>`;
   }
 }
 
+/* ─── Add Student ────────────────────────────────────────────── */
 async function addStudent() {
-  const name = document.getElementById("studentName").value.trim();
-  const id = document.getElementById("studentId").value.trim();
-  const mobile = document.getElementById("studentMobile").value.trim();
-  const code = document.getElementById("studentClass").value;
-  if (!name || !id || !mobile || !code) return toast("Add student name, ID, mobile, and pick a class");
+  const idEl    = document.getElementById("studentId");
+  const classEl = document.getElementById("studentClass");
+  const studentUserId = idEl.value.trim();
+  const code = classEl.value;
 
-  const classItem = getClassByCode(code);
-  if (!classItem) return toast("Class not found");
+  if (!studentUserId) return toast("Enter the student's registered ID (e.g., STD123456)", "error");
+  if (!code) return toast("Select a class to assign the student to", "error");
+
+  const cls = getClassByCode(code);
+  if (!cls) return toast("Class not found", "error");
+
+  // Check not already in class locally
+  if (cls.students.some(s => s.id.toLowerCase() === studentUserId.toLowerCase())) {
+    return toast("This student is already in this class", "error");
+  }
 
   try {
-    // Note: classItem must have an .id property from DB!
-    const res = await fetch(API_BASE + `/api/classes/${classItem.id}/students`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + localStorage.getItem('attendance360Token')
-      },
-      body: JSON.stringify({ studentId: id })
+    showSpinner(true);
+    const res = await fetch(API_BASE + `/api/classes/${cls.id}/students`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+      body: JSON.stringify({ studentId: studentUserId })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
+    showSpinner(false);
 
-    const apiStudent = data.student;
-    classItem.students.push({ 
-        name: apiStudent ? `${apiStudent.firstName} ${apiStudent.lastName}`.trim() : name, 
-        id: apiStudent ? apiStudent.userId : id, 
-        dbId: apiStudent ? apiStudent.id : null,
-        mobile: apiStudent ? apiStudent.phone : mobile, 
-        marks: null 
+    if (!res.ok) {
+      toast(data.error || "Failed to add student", "error");
+      return;
+    }
+
+    const s = data.student;
+    cls.students.push({
+      id: s.userId,
+      dbId: s.id,
+      name: `${s.firstName} ${s.lastName}`.trim(),
+      mobile: s.phone || "",
+      email: s.email || "",
+      marks: null
     });
 
-    document.getElementById("studentName").value = "";
-    document.getElementById("studentId").value = "";
-    document.getElementById("studentMobile").value = "";
+    // Auto-fill name field for confirmation
+    document.getElementById("studentName").value = `${s.firstName} ${s.lastName}`.trim();
+    document.getElementById("studentMobile").value = s.phone || "";
+
+    idEl.value = "";
     renderStudents();
     renderAttendanceWorkspace();
-    renderAttendanceSearchResults();
     renderFeedbackEligibility();
-    persistSharedData();
-    toast("Student added");
+    persistLocalData();
+    toast(`${s.firstName} ${s.lastName} added to ${cls.name}!`, "success");
   } catch (err) {
-    toast(err.message || "Failed to add student. Ensure ID exists.");
+    showSpinner(false);
+    toast("Network error: " + (err.message || "Try again"), "error");
   }
+}
+
+/* "Lookup" student by ID without adding (auto-fills name/phone) */
+async function lookupStudent() {
+  const idVal = document.getElementById("studentId").value.trim();
+  if (!idVal) return;
+  try {
+    const res = await fetch(API_BASE + `/api/users/lookup/${encodeURIComponent(idVal)}`, {
+      headers: { "Authorization": "Bearer " + getToken() }
+    });
+    if (!res.ok) { const d = await res.json(); toast(d.error, "error"); return; }
+    const s = await res.json();
+    document.getElementById("studentName").value  = `${s.firstName} ${s.lastName}`.trim();
+    document.getElementById("studentMobile").value = s.phone || "";
+  } catch {}
+}
+
+/* ─── Remove Student ─────────────────────────────────────────── */
+async function removeStudentFromClass(classCode, idx) {
+  const cls = getClassByCode(classCode);
+  if (!cls || !cls.students[idx]) return;
+  const student = cls.students[idx];
+
+  // Optimistic local remove
+  cls.students.splice(idx, 1);
+  // Clean up local linked data
+  for (let i = directShares.length - 1; i >= 0; i--) {
+    if (directShares[i].studentId === student.id) directShares.splice(i, 1);
+  }
+  for (let i = conversations.length - 1; i >= 0; i--) {
+    if (conversations[i].studentId === student.id) conversations.splice(i, 1);
+  }
+  for (let i = notifications.length - 1; i >= 0; i--) {
+    if (notifications[i].studentId === student.id) notifications.splice(i, 1);
+  }
+  if (activeStudentContext?.studentId === student.id) closeStudentConnectModal();
+
+  persistLocalData();
+  renderStudents();
+  renderClasses();
+  renderAttendanceWorkspace();
+  renderFeedbackEligibility();
+  toast(`${student.name} removed from ${cls.name}`);
+
+  // Backend delete (fire and forget)
+  const token = getToken();
+  if (token) {
+    fetch(API_BASE + `/api/classes/${cls.id}/students/${student.id}`, {
+      method: "DELETE",
+      headers: { "Authorization": "Bearer " + token }
+    }).catch(e => console.warn("[removeStudent]", e));
+  }
+}
+
+/* ─── File sharing ───────────────────────────────────────────── */
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: file.name, mimeType: file.type || "application/octet-stream", dataUrl: reader.result });
+    reader.onerror = () => reject(reader.error || new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+if (fileUpload) {
+  fileUpload.addEventListener("change", () => {
+    const picked = fileUpload.files?.length
+      ? Array.from(fileUpload.files).map(f => f.name).join(", ")
+      : "No file chosen";
+    document.getElementById("filePicked").textContent = picked;
+  });
+}
+if (personalShareUpload) {
+  personalShareUpload.addEventListener("change", () => {
+    const picked = personalShareUpload.files?.length
+      ? Array.from(personalShareUpload.files).map(f => f.name).join(", ")
+      : "No file chosen";
+    personalSharePicked.textContent = picked;
+  });
 }
 
 async function shareFile() {
-  const title = document.getElementById("fileTitle").value.trim();
-  const type = document.getElementById("fileType").value;
-  const code = document.getElementById("fileClass").value;
-  const notes = document.getElementById("fileNotes").value.trim();
+  const title  = document.getElementById("fileTitle").value.trim();
+  const type   = document.getElementById("fileType").value;
+  const code   = document.getElementById("fileClass").value;
+  const notes  = document.getElementById("fileNotes").value.trim();
   const upload = document.getElementById("fileUpload");
-  if (!title || !code) return toast("Add title and class");
+  if (!title) return toast("Enter a file title", "error");
+  if (!code)  return toast("Select a class", "error");
 
-  const classItem = getClassByCode(code);
-  if (!classItem) return toast("Class not found");
+  const cls = getClassByCode(code);
+  if (!cls) return toast("Class not found", "error");
 
   try {
-    const res = await fetch(API_BASE + '/api/files', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + localStorage.getItem('attendance360Token')
-      },
-      body: JSON.stringify({
-        title,
-        type,
-        notes,
-        classId: classItem.id
-      })
+    showSpinner(true);
+    const res = await fetch(API_BASE + "/api/files", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+      body: JSON.stringify({ title, type, notes, classId: cls.id })
     });
-
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
+    showSpinner(false);
+    if (!res.ok) { toast(data.error || "Failed to share file", "error"); return; }
 
-    const attachments = upload.files && upload.files.length
+    const attachments = upload.files?.length
       ? await Promise.all(Array.from(upload.files).map(readFileAsDataUrl))
       : [];
-    const pickedNames = attachments.length ? attachments.map((file) => file.name).join(", ") : "No attachment";
 
     const entry = {
-      id: data.id,
-      title,
-      type,
-      class: classItem.name,
-      classCode: classItem.code,
-      notes,
-      files: pickedNames,
+      id: data.id, title, type,
+      class: cls.name, classCode: cls.code, notes,
+      files: attachments.length ? attachments.map(f => f.name).join(", ") : "No attachment",
       attachments
     };
-
     shared.unshift(entry);
-    classItem.files.push(entry);
+    cls.files.push(entry);
 
     document.getElementById("fileTitle").value = "";
     document.getElementById("fileNotes").value = "";
     document.getElementById("fileUpload").value = "";
     document.getElementById("filePicked").textContent = "No file chosen";
     renderFiles();
-    toast("Shared successfully");
+    toast(`"${title}" shared with ${cls.name}!`, "success");
   } catch (err) {
-    toast(err.message || "Failed to share file");
+    showSpinner(false);
+    toast("Network error: " + (err.message || "Try again"), "error");
   }
 }
 
 function renderFiles() {
   const list = document.getElementById("fileList");
+  if (!list) return;
   list.innerHTML = "";
-  shared.forEach((item, sharedIndex) => {
+  if (!shared.length) {
+    list.innerHTML = '<div class="empty-state">No files shared yet.</div>';
+    return;
+  }
+  shared.forEach((item, sharedIdx) => {
     const div = document.createElement("div");
     div.className = "item";
-    const fileLabel = item.attachments?.length ? item.attachments.map((file) => file.name).join(", ") : (item.files || "No attachment");
-    div.innerHTML = `<div><strong>${item.title}</strong><p>${item.class}</p><p class="muted">${fileLabel}</p><p class="muted">${item.notes || "No notes"}</p></div>
+    const label = item.attachments?.length
+      ? item.attachments.map(f => f.name).join(", ")
+      : (item.files || "No attachment");
+    div.innerHTML = `
+      <div>
+        <strong>${item.title}</strong>
+        <p>${item.class} · <span class="badge">${item.type}</span></p>
+        <p class="muted">${label}</p>
+        <p class="muted">${item.notes || "No notes"}</p>
+      </div>
       <div class="item-actions">
-        <span class="badge">${item.type}</span>
-        <button class="danger-btn delete-file-btn" data-file-index="${sharedIndex}" aria-label="Delete ${item.title}">Delete</button>
+        <button class="danger-btn delete-file-btn" data-file-index="${sharedIdx}" aria-label="Delete ${item.title}">Delete</button>
       </div>`;
     list.appendChild(div);
   });
 }
 
-function asyncRemoveStudent(classCode, idx) {
-  const classItem = getClassByCode(classCode);
-  if (!classItem || !classItem.students[idx]) return;
-  const removedStudent = classItem.students[idx];
-
-  const token = localStorage.getItem('attendance360Token');
-  if (token) {
-    fetch(API_BASE + `/api/classes/${classItem.id}/students/${removedStudent.id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token }
-    }).catch(e => console.warn("Failed to delete from DB", e));
-  }
-
-  classItem.students.splice(idx, 1);
-
-  for (let shareIndex = directShares.length - 1; shareIndex >= 0; shareIndex -= 1) {
-    if (directShares[shareIndex].studentId === removedStudent.id) directShares.splice(shareIndex, 1);
-  }
-
-  for (let conversationIndex = conversations.length - 1; conversationIndex >= 0; conversationIndex -= 1) {
-    if (conversations[conversationIndex].studentId === removedStudent.id) conversations.splice(conversationIndex, 1);
-  }
-  for (let noteIndex = notifications.length - 1; noteIndex >= 0; noteIndex -= 1) {
-    if (notifications[noteIndex].studentId === removedStudent.id) notifications.splice(noteIndex, 1);
-  }
-  for (let formIndex = feedbackForms.length - 1; formIndex >= 0; formIndex -= 1) {
-    if (feedbackForms[formIndex].studentId === removedStudent.id) feedbackForms.splice(formIndex, 1);
-  }
-
-  if (activeStudentContext?.studentId === removedStudent.id) closeStudentConnectModal();
-
-  persistSharedData();
-  renderStudents();
-  renderClasses();
-  renderAttendanceWorkspace();
-  renderAttendanceSearchResults();
-  renderFeedbackEligibility();
-  toast(`${removedStudent.name} removed from ${classItem.name}`);
-}
-
-function deleteSharedFile(sharedIndex) {
-  const item = shared[sharedIndex];
+function deleteSharedFile(sharedIdx) {
+  const item = shared[sharedIdx];
   if (!item) return;
-  shared.splice(sharedIndex, 1);
-  classes.forEach((classItem) => {
-    classItem.files = classItem.files.filter((file) => file.id !== item.id);
-  });
-  persistSharedData();
+
+  // Backend delete
+  if (item.id && getToken()) {
+    fetch(API_BASE + `/api/files/${item.id}`, {
+      method: "DELETE",
+      headers: { "Authorization": "Bearer " + getToken() }
+    }).catch(e => console.warn("[deleteFile]", e));
+  }
+
+  shared.splice(sharedIdx, 1);
+  classes.forEach(cls => { cls.files = cls.files.filter(f => f.id !== item.id); });
+  persistLocalData();
   renderFiles();
-  toast(`${item.title} deleted`);
+  toast(`"${item.title}" deleted`);
 }
 
+/* ─── Attendance ─────────────────────────────────────────────── */
 function renderAttendanceWorkspace() {
-  const code = document.getElementById("attClass").value || classes[0]?.code;
-  const classItem = getClassByCode(code);
-  if (!classItem) return;
+  const code = document.getElementById("attClass")?.value || classes[0]?.code;
+  const cls  = getClassByCode(code);
+  if (!cls) return;
 
-  const attendanceDate = attendanceDateInput?.value;
-  const record = attendanceDate ? getAttendanceRecord(code, attendanceDate) : null;
-  const tbody = document.getElementById("attTable");
-  const classStats = document.getElementById("attendanceClassStats");
-  const coverage = document.getElementById("attendanceCoverage");
-  const loadedChip = document.getElementById("loadedAttendanceRecord");
+  const date   = attendanceDateInput?.value;
+  const record = date ? getAttendanceRecord(code, date) : null;
+  const tbody  = document.getElementById("attTable");
+  if (!tbody) return;
 
   tbody.innerHTML = "";
-  if (classStats) classStats.textContent = `${classItem.students.length} students`;
-  if (coverage) {
-    coverage.textContent = record
-      ? `Loaded saved attendance for ${formatAttendanceDate(attendanceDate)}. You can update it and save again.`
-      : "No record exists for the selected date yet. This fresh sheet can be used for today or any past date.";
-  }
-  if (loadedChip) loadedChip.textContent = record ? `Loaded ${formatAttendanceDate(attendanceDate)}` : "Fresh sheet";
+  const classStats = document.getElementById("attendanceClassStats");
+  const coverage   = document.getElementById("attendanceCoverage");
+  const loadedChip = document.getElementById("loadedAttendanceRecord");
+  if (classStats) classStats.textContent = `${cls.students.length} students`;
+  if (coverage) coverage.textContent = record
+    ? `Loaded saved attendance for ${formatAttendanceDate(date)}. Modify and save again.`
+    : "Fresh sheet — mark attendance for any date below.";
+  if (loadedChip) loadedChip.textContent = record ? `Loaded ${formatAttendanceDate(date)}` : "Fresh sheet";
 
-  classItem.students.forEach((student) => {
+  cls.students.forEach(student => {
     const tr = document.createElement("tr");
-    const checked = record ? record.present.some((entry) => entry.id === student.id) : true;
-    tr.dataset.studentName = student.name;
-    tr.dataset.studentId = student.id;
+    const checked = record ? record.present.some(s => s.id === student.id) : true;
+    tr.dataset.studentName  = student.name;
+    tr.dataset.studentId    = student.id;
     if (student.dbId) tr.dataset.studentDbId = student.dbId;
-    tr.innerHTML = `<td>${student.name}</td>
-      <td>${student.id}</td>
+    tr.innerHTML = `<td>${student.name}</td><td><code>${student.id}</code></td>
       <td>${checked ? "Present" : "Absent"}</td>
       <td><label class="toggle"><input type="checkbox" ${checked ? "checked" : ""}><span>Mark</span></label></td>`;
     tbody.appendChild(tr);
   });
-
   updateCount();
   renderFeedbackEligibility();
 }
 
 function updateCount() {
-  const rows = Array.from(document.querySelectorAll("#attTable tr"));
-  let present = 0;
-  let absent = 0;
-
-  rows.forEach((row) => {
-    const checkbox = row.querySelector("input[type='checkbox']");
-    const statusCell = row.children[2];
-    const isPresent = Boolean(checkbox?.checked);
-    if (statusCell) statusCell.textContent = isPresent ? "Present" : "Absent";
-    if (isPresent) present += 1;
-    else absent += 1;
+  let present = 0, absent = 0;
+  document.querySelectorAll("#attTable tr").forEach(row => {
+    const cb = row.querySelector("input[type='checkbox']");
+    const cell = row.children[2];
+    const isPresent = Boolean(cb?.checked);
+    if (cell) cell.textContent = isPresent ? "Present" : "Absent";
+    if (isPresent) present++; else absent++;
   });
-
   document.getElementById("presentCount").textContent = `Present: ${present}`;
-  document.getElementById("absentCount").textContent = `Absent: ${absent}`;
+  document.getElementById("absentCount").textContent  = `Absent: ${absent}`;
 }
 
-function formatAttendanceDate(value) {
-  if (!value) return "No date";
-  const date = new Date(`${value}T00:00:00`);
-  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+async function saveAttendance() {
+  const code = document.getElementById("attClass")?.value || classes[0]?.code;
+  const cls  = getClassByCode(code);
+  const date = attendanceDateInput?.value;
+  if (!cls)  return toast("Select a class first", "error");
+  if (!date) return toast("Pick an attendance date", "error");
+
+  const rows = Array.from(document.querySelectorAll("#attTable tr"));
+  const present = [], absent = [];
+  const apiRecords = [];
+
+  rows.forEach(row => {
+    const student = { name: row.dataset.studentName || "", id: row.dataset.studentId || "", dbId: parseInt(row.dataset.studentDbId) || null };
+    const isPresent = Boolean(row.querySelector("input[type='checkbox']")?.checked);
+    if (isPresent) present.push(student); else absent.push(student);
+    if (student.dbId) apiRecords.push({ studentId: student.dbId, status: isPresent ? "present" : "absent" });
+  });
+
+  // Save locally
+  const existIdx = attendanceRecords.findIndex(r => r.classCode === cls.code && r.date === date);
+  const prevRecord = existIdx >= 0 ? attendanceRecords[existIdx] : null;
+  const record = { className: cls.name, classCode: cls.code, date, present, absent, savedAt: new Date().toISOString() };
+  if (existIdx >= 0) attendanceRecords.splice(existIdx, 1);
+  attendanceRecords.unshift(record);
+
+  // Push notifications
+  cls.students.forEach(s => {
+    const oldStatus = prevRecord?.present?.some(e => e.id === s.id) ? "Present" : prevRecord ? "Absent" : "";
+    const newStatus = present.some(e => e.id === s.id) ? "Present" : "Absent";
+    const msg = oldStatus && oldStatus !== newStatus
+      ? `${cls.name}: attendance for ${formatAttendanceDate(date)} changed to ${newStatus}.`
+      : `${cls.name}: attendance for ${formatAttendanceDate(date)} marked ${newStatus}.`;
+    pushNotification(s.id, "Attendance Updated", msg, "ATTENDANCE");
+  });
+
+  persistLocalData();
+  renderAttendanceWorkspace();
+  renderAttendanceHistory();
+  renderAttendanceSearchResults();
+  toast(`Attendance saved for ${cls.name} · ${formatAttendanceDate(date)}`, "success");
+
+  // Persist to backend
+  if (apiRecords.length && getToken()) {
+    try {
+      const res = await fetch(API_BASE + "/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+        body: JSON.stringify({ date, classId: cls.id, records: apiRecords })
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        toast("Attendance saved locally but backend sync failed: " + d.error, "error");
+      }
+    } catch (e) {
+      toast("Attendance saved locally — backend offline", "error");
+    }
+  }
 }
 
 function renderAttendanceHistory() {
-  const list = document.getElementById("attendanceHistoryList");
+  const list  = document.getElementById("attendanceHistoryList");
   const count = document.getElementById("attendanceHistoryCount");
   if (!list || !count) return;
-
+  count.textContent = `${attendanceRecords.length} record${attendanceRecords.length !== 1 ? "s" : ""}`;
   list.innerHTML = "";
-  count.textContent = `${attendanceRecords.length} record${attendanceRecords.length === 1 ? "" : "s"}`;
-
   if (!attendanceRecords.length) {
-    list.innerHTML = '<div class="item column"><strong>No attendance saved yet</strong><p>Saved class attendance will appear here with the present and absent students for each day.</p></div>';
+    list.innerHTML = '<div class="item column"><strong>No attendance saved yet</strong><p>Save class attendance to see the history here.</p></div>';
     return;
   }
-
-  attendanceRecords.forEach((record) => {
+  attendanceRecords.forEach(record => {
     const card = document.createElement("div");
     card.className = "item column attendance-record";
-    const presentNames = record.present.length ? record.present.map((student) => `${student.name} (${student.id})`).join(", ") : "None";
-    const absentNames = record.absent.length ? record.absent.map((student) => `${student.name} (${student.id})`).join(", ") : "None";
+    const pNames = record.present.length ? record.present.map(s => `${s.name} (${s.id})`).join(", ") : "None";
+    const aNames = record.absent.length  ? record.absent.map(s =>  `${s.name} (${s.id})`).join(", ") : "None";
     card.innerHTML = `
       <div class="attendance-record-head">
-        <div>
-          <strong>${record.className}</strong>
-          <p>${record.classCode} · ${formatAttendanceDate(record.date)}</p>
-        </div>
+        <div><strong>${record.className}</strong><p>${record.classCode} · ${formatAttendanceDate(record.date)}</p></div>
         <div class="attendance-record-actions">
           <span class="badge">${record.present.length} Present / ${record.absent.length} Absent</span>
           <button class="ghost-btn load-attendance-btn" data-class="${record.classCode}" data-date="${record.date}" type="button">Load Record</button>
         </div>
       </div>
       <div class="attendance-split">
-        <div class="attendance-block present-block">
-          <strong>Present</strong>
-          <p>${presentNames}</p>
-        </div>
-        <div class="attendance-block absent-block">
-          <strong>Absent</strong>
-          <p>${absentNames}</p>
-        </div>
-      </div>
-    `;
+        <div class="attendance-block present-block"><strong>Present</strong><p>${pNames}</p></div>
+        <div class="attendance-block absent-block"><strong>Absent</strong><p>${aNames}</p></div>
+      </div>`;
     list.appendChild(card);
   });
 }
 
-function saveAttendance() {
-  const classCode = document.getElementById("attClass").value || classes[0]?.code;
-  const classItem = getClassByCode(classCode);
-  const attendanceDate = attendanceDateInput?.value;
-
-  if (!classItem) return toast("Select a class first");
-  if (!attendanceDate) return toast("Pick an attendance date");
-  const previousRecord = getAttendanceRecord(classCode, attendanceDate);
-
-  const rows = Array.from(document.querySelectorAll("#attTable tr"));
-  const present = [];
-  const absent = [];
-
-  rows.forEach((row) => {
-    const student = { name: row.dataset.studentName || "", id: row.dataset.studentId || "", dbId: parseInt(row.dataset.studentDbId) || null };
-    const checked = Boolean(row.querySelector("input[type='checkbox']")?.checked);
-    if (checked) present.push(student);
-    else absent.push(student);
-  });
-
-  const existingRecordIndex = attendanceRecords.findIndex((record) => record.classCode === classItem.code && record.date === attendanceDate);
-  const record = {
-    className: classItem.name,
-    classCode: classItem.code,
-    date: attendanceDate,
-    present,
-    absent,
-    savedAt: new Date().toISOString()
-  };
-
-  if (existingRecordIndex >= 0) attendanceRecords.splice(existingRecordIndex, 1);
-
-  attendanceRecords.unshift(record);
-  classItem.students.forEach((student) => {
-    const oldStatus = previousRecord?.present?.some((entry) => entry.id === student.id) ? "Present"
-      : previousRecord?.absent?.some((entry) => entry.id === student.id) ? "Absent"
-        : "";
-    const newStatus = present.some((entry) => entry.id === student.id) ? "Present" : "Absent";
-    const message = oldStatus && oldStatus !== newStatus
-      ? `${classItem.name}: attendance for ${formatAttendanceDate(attendanceDate)} was updated to ${newStatus}.`
-      : `${classItem.name}: attendance for ${formatAttendanceDate(attendanceDate)} was marked ${newStatus}.`;
-    pushNotification(student.id, "Attendance updated", message, "ATTENDANCE");
-  });
-  persistSharedData();
-  renderAttendanceWorkspace();
-  renderAttendanceHistory();
-  renderAttendanceSearchResults();
-  renderFeedbackEligibility();
-  renderStudents();
-  toast(`Attendance saved for ${classItem.name} on ${formatAttendanceDate(attendanceDate)}`);
-}
-
 function renderAttendanceSearchResults() {
-  const list = document.getElementById("attendanceRecordResults");
+  const list    = document.getElementById("attendanceRecordResults");
   const summary = document.getElementById("attendanceSearchSummary");
   if (!list || !summary) return;
-
   const query = (attendanceSearchInput?.value || "").trim().toLowerCase();
-  const allStudents = classes.flatMap((classItem) => classItem.students.map((student) => ({
-    ...student,
-    className: classItem.name
-  })));
-
   list.innerHTML = "";
   if (!query) {
     summary.textContent = "Search a student";
-    list.innerHTML = '<div class="empty-state">Search a student by name or ID to review each attendance entry and the overall percentage.</div>';
+    list.innerHTML = '<div class="empty-state">Search a student by name or ID to review attendance.</div>';
     return;
   }
-
-  const matches = allStudents.filter((student) => `${student.name} ${student.id}`.toLowerCase().includes(query));
+  const all = classes.flatMap(cls => cls.students.map(s => ({ ...s, className: cls.name })));
+  const matches = all.filter(s => `${s.name} ${s.id}`.toLowerCase().includes(query));
   if (!matches.length) {
     summary.textContent = "No match";
-    list.innerHTML = '<div class="empty-state">No student matched that name or ID.</div>';
+    list.innerHTML = '<div class="empty-state">No student matched that search.</div>';
     return;
   }
-
-  summary.textContent = `${matches.length} match${matches.length === 1 ? "" : "es"}`;
-  matches.forEach((student) => {
+  summary.textContent = `${matches.length} match${matches.length !== 1 ? "es" : ""}`;
+  matches.forEach(student => {
     const entries = getStudentAttendanceEntries(student.id);
     const stats = getAttendanceStats(entries);
     const card = document.createElement("div");
     card.className = "student-record-card";
     card.innerHTML = `
-      <strong>${student.name}</strong>
-      <p>${student.className} · ${student.id}</p>
+      <strong>${student.name}</strong><p>${student.className} · ${student.id}</p>
       <div class="student-record-summary">
-        <div class="mini-stat"><strong>${stats.percent}%</strong><span class="muted small">Overall attendance</span></div>
+        <div class="mini-stat"><strong>${stats.percent}%</strong><span class="muted small">Overall</span></div>
         <div class="mini-stat"><strong>${stats.present}</strong><span class="muted small">Present</span></div>
         <div class="mini-stat"><strong>${stats.absent}</strong><span class="muted small">Absent</span></div>
       </div>
       <div class="attendance-line-list">
-        ${entries.length ? entries.map((entry) => `
-          <div class="attendance-line-item">
-            <div>
-              <strong>${entry.className}</strong>
-              <p>${formatAttendanceDate(entry.date)}</p>
-            </div>
-            <span class="status-pill ${entry.status.toLowerCase()}">${entry.status}</span>
-          </div>
-        `).join("") : '<div class="empty-state">No saved attendance records for this student yet.</div>'}
-      </div>
-    `;
+        ${entries.length
+          ? entries.map(e => `<div class="attendance-line-item"><div><strong>${e.className}</strong><p>${formatAttendanceDate(e.date)}</p></div><span class="status-pill ${e.status.toLowerCase()}">${e.status}</span></div>`).join("")
+          : '<div class="empty-state">No saved records for this student yet.</div>'}
+      </div>`;
     list.appendChild(card);
+  });
+}
+
+/* ─── Feedback ───────────────────────────────────────────────── */
+function getEligibleFeedbackStudents(classCode) {
+  const cls = getClassByCode(classCode);
+  if (!cls) return [];
+  return cls.students.filter(s => {
+    const stats = getAttendanceStats(getStudentAttendanceEntries(s.id, classCode));
+    return stats.total > 0 && stats.percent > 60;
   });
 }
 
 function renderFeedbackEligibility() {
   const classCode = feedbackClassSelect?.value || classes[0]?.code;
-  const eligible = getEligibleFeedbackStudents(classCode);
+  const eligible  = getEligibleFeedbackStudents(classCode);
   const chip = document.getElementById("eligibleFeedbackCount");
   if (chip) chip.textContent = `${eligible.length} eligible`;
 }
 
 function renderTeacherFeedbackResponses() {
-  const list = document.getElementById("teacherFeedbackResponseList");
+  const list  = document.getElementById("teacherFeedbackResponseList");
   const count = document.getElementById("teacherFeedbackResponseCount");
   if (!list || !count) return;
-
   const classCode = feedbackClassSelect?.value || classes[0]?.code;
   const responses = feedbackForms
-    .filter((form) => form.teacherUserId === currentUser?.userId && form.classCode === classCode && form.response?.trim() && form.respondedAt)
+    .filter(f => f.teacherUserId === currentUser?.userId && f.classCode === classCode && f.response?.trim() && f.respondedAt)
     .sort((a, b) => new Date(b.respondedAt) - new Date(a.respondedAt));
-
-  count.textContent = `${responses.length} response${responses.length === 1 ? "" : "s"}`;
+  count.textContent = `${responses.length} response${responses.length !== 1 ? "s" : ""}`;
   list.innerHTML = "";
-
   if (!responses.length) {
-    list.innerHTML = '<div class="item column"><strong>No submitted feedback yet</strong><p>Once students send their responses, they will appear here class-wise.</p></div>';
+    list.innerHTML = '<div class="item column"><strong>No feedback responses yet</strong><p>Student responses will appear here once submitted.</p></div>';
     return;
   }
-
-  responses.forEach((form) => {
+  responses.forEach(f => {
     const card = document.createElement("div");
     card.className = "feedback-response-card";
     card.innerHTML = `
       <div class="section-head wrap">
-        <div>
-          <strong>${form.studentName}</strong>
-          <p>${form.studentId} · ${form.className}</p>
-        </div>
-        <span class="chip">${formatTimestamp(form.respondedAt)}</span>
+        <div><strong>${f.studentName}</strong><p>${f.studentId} · ${f.className}</p></div>
+        <span class="chip">${formatTimestamp(f.respondedAt)}</span>
       </div>
-      <p><strong>${form.title}</strong></p>
-      <p class="muted">${form.prompt}</p>
-      <div class="feedback-response-body">${form.response}</div>
-    `;
+      <p><strong>${f.title}</strong></p><p class="muted">${f.prompt}</p>
+      <div class="feedback-response-body">${f.response}</div>`;
     list.appendChild(card);
   });
 }
 
 function sendFeedbackBroadcast() {
   const classCode = feedbackClassSelect?.value || classes[0]?.code;
-  const classItem = getClassByCode(classCode);
-  const title = document.getElementById("feedbackTitle").value.trim() || "Class feedback form";
-  const prompt = document.getElementById("feedbackPrompt").value.trim();
-
-  if (!classItem) return toast("Choose a class first");
-  if (!prompt) return toast("Add a feedback prompt first");
-
-  const eligibleStudents = getEligibleFeedbackStudents(classCode);
-  if (!eligibleStudents.length) return toast("No students above 60% attendance for this class yet");
-
-  eligibleStudents.forEach((student) => {
+  const cls       = getClassByCode(classCode);
+  const title     = document.getElementById("feedbackTitle").value.trim() || "Class feedback form";
+  const prompt    = document.getElementById("feedbackPrompt").value.trim();
+  if (!cls)    return toast("Choose a class first", "error");
+  if (!prompt) return toast("Add a feedback prompt first", "error");
+  const eligible = getEligibleFeedbackStudents(classCode);
+  if (!eligible.length) return toast("No students above 60% attendance for this class yet", "error");
+  eligible.forEach(s => {
     feedbackForms.unshift({
       id: `feedback-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-      classCode: classItem.code,
-      className: classItem.name,
-      studentId: student.id,
-      studentName: student.name,
-      teacherUserId: currentUser.userId,
-      teacherName: getDisplayName(currentUser),
-      title,
-      prompt,
-      createdAt: new Date().toISOString(),
-      response: "",
-      respondedAt: ""
+      classCode: cls.code, className: cls.name,
+      studentId: s.id, studentName: s.name,
+      teacherUserId: currentUser.userId, teacherName: getDisplayName(currentUser),
+      title, prompt, createdAt: new Date().toISOString(),
+      response: "", respondedAt: ""
     });
-    pushNotification(student.id, "Feedback form received", `${title} is available for ${classItem.name}.`, "FEEDBACK");
+    pushNotification(s.id, "Feedback form received", `${title} is available for ${cls.name}.`, "FEEDBACK");
   });
-
-  persistSharedData();
+  persistLocalData();
   document.getElementById("feedbackTitle").value = "";
   document.getElementById("feedbackPrompt").value = "";
   renderFeedbackEligibility();
   renderTeacherFeedbackResponses();
   renderTeacherNotifications();
-  toast(`Feedback form sent to ${eligibleStudents.length} student${eligibleStudents.length === 1 ? "" : "s"}`);
-}
-function formatTimestamp(value) {
-  if (!value) return "";
-  return new Date(value).toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  toast(`Feedback form sent to ${eligible.length} student${eligible.length !== 1 ? "s" : ""}`, "success");
 }
 
-function getStudentContext(classCode, idx) {
-  const classItem = classes.find((entry) => entry.code === classCode);
-  if (!classItem || !classItem.students[idx]) return null;
-  const student = classItem.students[idx];
-  return {
-    classCode,
-    className: classItem.name,
-    idx,
-    studentId: student.id,
-    studentName: student.name,
-    studentMobile: student.mobile || "",
-    student
-  };
+/* ─── Student Connect Modal ──────────────────────────────────── */
+function getConversation(classCode, studentId, studentName) {
+  let conv = conversations.find(c => c.classCode === classCode && c.studentId === studentId);
+  if (!conv) {
+    conv = { id: `conv-${classCode}-${studentId}`, classCode, studentId, studentName, messages: [] };
+    conversations.push(conv);
+  }
+  return conv;
+}
+
+function getStudentDirectShares(studentId) {
+  return directShares.filter(d => d.studentId === studentId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
 function openStudentConnectModal(classCode, idx) {
-  const context = getStudentContext(classCode, idx);
-  if (!context) return;
-  activeStudentContext = context;
-  connectStudentName.textContent = context.studentName;
-  connectStudentMeta.textContent = `${context.className} · ${context.studentId} · ${context.studentMobile || "No mobile"}`;
-  teacherChatMessage.value = "";
-  personalShareTitle.value = "";
-  personalShareNotes.value = "";
-  personalShareMarks.value = context.student.marks ?? "";
-  personalShareType.value = context.student.marks != null ? "MARKS" : "FILE";
-  personalShareUpload.value = "";
+  const cls = getClassByCode(classCode);
+  if (!cls || !cls.students[idx]) return;
+  const student = cls.students[idx];
+  activeStudentContext = { classCode, className: cls.name, idx, studentId: student.id, studentDbId: student.dbId, studentName: student.name, studentMobile: student.mobile || "", student };
+  connectStudentName.textContent = student.name;
+  connectStudentMeta.textContent = `${cls.name} · ${student.id} · ${student.mobile || "No mobile"}`;
+  teacherChatMessage.value   = "";
+  personalShareTitle.value   = "";
+  personalShareNotes.value   = "";
+  personalShareMarks.value   = student.marks ?? "";
+  personalShareType.value    = student.marks != null ? "MARKS" : "FILE";
+  personalShareUpload.value  = "";
   personalSharePicked.textContent = "No file chosen";
   renderTeacherConversation();
   renderTeacherStudentResources();
   studentConnectModal.classList.remove("hidden");
+  // Load real messages from backend
+  if (student.dbId) loadRealMessages(student.dbId);
 }
-
 function closeStudentConnectModal() {
   studentConnectModal.classList.add("hidden");
   activeStudentContext = null;
 }
 
+async function loadRealMessages(studentDbId) {
+  try {
+    const res = await fetch(API_BASE + `/api/messages/${studentDbId}`, {
+      headers: { "Authorization": "Bearer " + getToken() }
+    });
+    if (!res.ok) return;
+    const messages = await res.json();
+    if (!activeStudentContext) return;
+
+    const conv = getConversation(activeStudentContext.classCode, activeStudentContext.studentId, activeStudentContext.studentName);
+    // Merge real messages (API messages take priority)
+    conv.messages = messages.map(m => ({
+      id: m.id,
+      senderRole: m.sender.role,
+      senderName: `${m.sender.firstName} ${m.sender.lastName}`.trim(),
+      senderUserId: m.sender.userId,
+      text: m.text,
+      createdAt: m.createdAt
+    }));
+    persistLocalData();
+    renderTeacherConversation();
+  } catch (e) {
+    console.warn("[loadRealMessages]", e);
+  }
+}
+
 function renderTeacherConversation() {
   if (!activeStudentContext) return;
-  const conversation = getConversation(activeStudentContext.classCode, activeStudentContext.studentId, activeStudentContext.studentName);
+  const conv = getConversation(activeStudentContext.classCode, activeStudentContext.studentId, activeStudentContext.studentName);
   teacherChatThread.innerHTML = "";
-
-  if (!conversation.messages.length) {
-    teacherChatThread.innerHTML = '<div class="empty-state">No messages yet. Start the conversation with this student.</div>';
+  if (!conv.messages.length) {
+    teacherChatThread.innerHTML = '<div class="empty-state">No messages yet. Start the conversation.</div>';
     return;
   }
-
-  conversation.messages.forEach((message) => {
+  conv.messages.forEach(msg => {
     const bubble = document.createElement("div");
-    bubble.className = `chat-bubble ${message.senderRole}`;
-    bubble.innerHTML = `<span class="chat-meta">${message.senderName} · ${formatTimestamp(message.createdAt)}</span><div>${message.text}</div>`;
+    bubble.className = `chat-bubble ${msg.senderRole}`;
+    bubble.innerHTML = `<span class="chat-meta">${msg.senderName} · ${formatTimestamp(msg.createdAt)}</span><div>${msg.text}</div>`;
     teacherChatThread.appendChild(bubble);
   });
   teacherChatThread.scrollTop = teacherChatThread.scrollHeight;
@@ -1065,80 +1015,89 @@ function renderTeacherStudentResources() {
   if (!activeStudentContext) return;
   const resources = getStudentDirectShares(activeStudentContext.studentId);
   teacherStudentResources.innerHTML = "";
-  studentResourceCount.textContent = `${resources.length} item${resources.length === 1 ? "" : "s"}`;
-
+  studentResourceCount.textContent = `${resources.length} item${resources.length !== 1 ? "s" : ""}`;
   if (!resources.length) {
-    teacherStudentResources.innerHTML = '<div class="empty-state">No personal files, marks, or notes shared with this student yet.</div>';
+    teacherStudentResources.innerHTML = '<div class="empty-state">No personal files or marks shared yet.</div>';
     return;
   }
-
-  resources.forEach((resource) => {
+  resources.forEach(r => {
     const card = document.createElement("div");
-    const attachmentText = resource.attachments?.length ? resource.attachments.map((file) => file.name).join(", ") : "No attachment";
-    const marksText = resource.marks != null ? `<p>Marks: ${resource.marks}</p>` : "";
     card.className = "resource-card";
-    card.innerHTML = `<strong>${resource.title}</strong><p>${resource.type} · ${formatTimestamp(resource.createdAt)}</p>${marksText}<p>${resource.notes || "No notes added."}</p><p class="muted">${attachmentText}</p>`;
+    const mText = r.marks != null ? `<p>Marks: ${r.marks}</p>` : "";
+    const aText = r.attachments?.length ? r.attachments.map(f => f.name).join(", ") : "No attachment";
+    card.innerHTML = `<strong>${r.title}</strong><p>${r.type} · ${formatTimestamp(r.createdAt)}</p>${mText}<p>${r.notes || "No notes."}</p><p class="muted">${aText}</p>`;
     teacherStudentResources.appendChild(card);
   });
 }
 
-function sendTeacherMessageToStudent() {
+async function sendTeacherMessageToStudent() {
   if (!activeStudentContext) return;
   const text = teacherChatMessage.value.trim();
-  if (!text) return toast("Type a message first");
-  const conversation = getConversation(activeStudentContext.classCode, activeStudentContext.studentId, activeStudentContext.studentName);
-  conversation.messages.push({
+  if (!text) return toast("Type a message first", "error");
+
+  // Optimistic local update
+  const conv = getConversation(activeStudentContext.classCode, activeStudentContext.studentId, activeStudentContext.studentName);
+  const localMsg = {
     senderRole: "teacher",
     senderName: getDisplayName(currentUser),
     senderUserId: currentUser.userId,
     text,
     createdAt: new Date().toISOString()
-  });
-  pushNotification(activeStudentContext.studentId, "New teacher message", `${getDisplayName(currentUser)} sent you a message in ${activeStudentContext.className}.`, "MESSAGE");
-  persistSharedData();
+  };
+  conv.messages.push(localMsg);
+  pushNotification(activeStudentContext.studentId, "New teacher message",
+    `${getDisplayName(currentUser)} sent you a message in ${activeStudentContext.className}.`, "MESSAGE");
+  persistLocalData();
   teacherChatMessage.value = "";
   renderTeacherConversation();
   renderStudents();
-  toast("Message sent");
+
+  // Backend persist
+  if (activeStudentContext.studentDbId && getToken()) {
+    try {
+      const res = await fetch(API_BASE + "/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+        body: JSON.stringify({ receiverId: activeStudentContext.studentDbId, text })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localMsg.id = data.id; // stamp with real DB id
+        persistLocalData();
+      }
+    } catch (e) { console.warn("[sendMessage]", e); }
+  }
+  toast("Message sent", "success");
 }
 
 async function shareIndividualUpdate() {
   if (!activeStudentContext) return;
-
-  const type = personalShareType.value;
-  const title = personalShareTitle.value.trim() || (type === "MARKS" ? "Marks update" : type === "NOTE" ? "Teacher note" : "Shared file");
-  const notes = personalShareNotes.value.trim();
+  const type     = personalShareType.value;
+  const title    = personalShareTitle.value.trim() || (type === "MARKS" ? "Marks update" : type === "NOTE" ? "Teacher note" : "Shared file");
+  const notes    = personalShareNotes.value.trim();
   const marksRaw = personalShareMarks.value.trim();
-  const marks = marksRaw ? Number(marksRaw) : null;
-  const attachments = personalShareUpload.files && personalShareUpload.files.length
+  const marks    = marksRaw ? Number(marksRaw) : null;
+  const attachments = personalShareUpload.files?.length
     ? await Promise.all(Array.from(personalShareUpload.files).map(readFileAsDataUrl))
     : [];
 
-  if (type === "MARKS" && (marks === null || Number.isNaN(marks) || marks < 0 || marks > 100)) return toast("Enter marks between 0 and 100");
-  if (type === "FILE" && !attachments.length && !notes) return toast("Attach a file or add notes");
-  if (type === "NOTE" && !notes) return toast("Add notes for the student");
+  if (type === "MARKS" && (marks === null || isNaN(marks) || marks < 0 || marks > 100)) return toast("Enter marks between 0 and 100", "error");
+  if (type === "FILE" && !attachments.length && !notes) return toast("Attach a file or add notes", "error");
+  if (type === "NOTE" && !notes) return toast("Add notes for the student", "error");
 
   const resource = {
     id: `direct-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    classCode: activeStudentContext.classCode,
-    className: activeStudentContext.className,
-    studentId: activeStudentContext.studentId,
-    studentName: activeStudentContext.studentName,
-    teacherUserId: currentUser.userId,
-    teacherName: getDisplayName(currentUser),
-    type,
-    title,
-    notes,
-    marks: type === "MARKS" ? marks : null,
-    attachments,
-    createdAt: new Date().toISOString()
+    classCode: activeStudentContext.classCode, className: activeStudentContext.className,
+    studentId: activeStudentContext.studentId, studentName: activeStudentContext.studentName,
+    teacherUserId: currentUser.userId, teacherName: getDisplayName(currentUser),
+    type, title, notes, marks: type === "MARKS" ? marks : null,
+    attachments, createdAt: new Date().toISOString()
   };
-
   directShares.unshift(resource);
   if (type === "MARKS") activeStudentContext.student.marks = marks;
-  pushNotification(activeStudentContext.studentId, "New personal update", `${title} was shared with you by ${getDisplayName(currentUser)}.`, "PERSONAL");
-
-  persistSharedData();
+  pushNotification(activeStudentContext.studentId, "New personal update",
+    `${title} was shared with you by ${getDisplayName(currentUser)}.`, "PERSONAL");
+  persistLocalData();
   personalShareTitle.value = "";
   personalShareNotes.value = "";
   personalShareUpload.value = "";
@@ -1146,60 +1105,42 @@ async function shareIndividualUpdate() {
   if (type !== "MARKS") personalShareMarks.value = activeStudentContext.student.marks ?? "";
   renderTeacherStudentResources();
   renderStudents();
-  toast("Shared with student");
+  toast("Shared with student!", "success");
 }
 
+/* ─── Profile & Auth ─────────────────────────────────────────── */
 function setDropdownOpen(isOpen) {
   if (!profileDropdown || !profileToggle) return;
   profileDropdown.classList.toggle("hidden", !isOpen);
   profileToggle.setAttribute("aria-expanded", String(isOpen));
 }
 
-function fillEditProfileForm(user) {
-  document.getElementById("editFirstName").value = user.firstName || "";
-  document.getElementById("editLastName").value = user.lastName || "";
-  document.getElementById("editUsername").value = user.username || "";
-  document.getElementById("editEmail").value = user.email || "";
-  document.getElementById("editPhone").value = user.phone || "";
-}
-
 function openEditProfile() {
   if (!currentUser) return;
-  fillEditProfileForm(currentUser);
+  document.getElementById("editFirstName").value = currentUser.firstName || "";
+  document.getElementById("editLastName").value  = currentUser.lastName  || "";
+  document.getElementById("editUsername").value  = currentUser.username  || "";
+  document.getElementById("editEmail").value     = currentUser.email     || "";
+  document.getElementById("editPhone").value     = currentUser.phone     || "";
   editProfileModal.classList.remove("hidden");
   setDropdownOpen(false);
 }
-
-function closeEditProfile() {
-  editProfileModal.classList.add("hidden");
-}
+function closeEditProfile() { editProfileModal.classList.add("hidden"); }
 
 function saveProfile() {
   if (!currentUser) return;
-
   const firstName = document.getElementById("editFirstName").value.trim();
-  const lastName = document.getElementById("editLastName").value.trim();
-  const username = document.getElementById("editUsername").value.trim();
-  const email = document.getElementById("editEmail").value.trim();
-  const phone = document.getElementById("editPhone").value.trim();
-
-  if (!firstName || !lastName || !username || !email || !phone) return toast("Fill in all profile fields");
-
-  const users = getUsers();
-  const usernameTaken = users.some((user) => user.userId !== currentUser.userId && (user.username || "").toLowerCase() === username.toLowerCase());
-  if (usernameTaken) return toast("This username is already taken");
-
-  const emailTaken = users.some((user) => user.userId !== currentUser.userId && (user.email || "").toLowerCase() === email.toLowerCase());
-  if (emailTaken) return toast("This email is already in use");
-
-  const updatedUser = { ...currentUser, firstName, lastName, username, email, phone };
-  const updatedUsers = users.map((user) => user.userId === currentUser.userId ? { ...user, ...updatedUser } : user);
-  saveUsers(updatedUsers);
-  persistCurrentUser(updatedUser);
-  currentUser = updatedUser;
+  const lastName  = document.getElementById("editLastName").value.trim();
+  const username  = document.getElementById("editUsername").value.trim();
+  const email     = document.getElementById("editEmail").value.trim();
+  const phone     = document.getElementById("editPhone").value.trim();
+  if (!firstName || !lastName || !username || !email || !phone) return toast("Fill in all profile fields", "error");
+  const updated = { ...currentUser, firstName, lastName, username, email, phone };
+  persistCurrentUser(updated);
+  currentUser = updated;
   applyTeacherProfile(currentUser);
   closeEditProfile();
-  toast("Profile updated");
+  toast("Profile updated!", "success");
 }
 
 function openTeacherPasswordReset() {
@@ -1209,106 +1150,134 @@ function openTeacherPasswordReset() {
 
 function logout() {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(TOKEN_KEY);
   window.location.href = "../Login/index.html";
 }
 
-async function asyncRemoveStudent(classCode, studentIdx) {
-  const token = localStorage.getItem('attendance360Token');
-  const cls = classes.find(c => c.code === classCode);
-  const student = cls?.students[studentIdx];
-  if (token && student) {
-    await fetch(`${API_BASE}/api/classes/${cls.id}/students/${student.id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
+/* ─── Backend Initializer ────────────────────────────────────── */
+async function initializeBackend() {
+  const token = getToken();
+  if (!token) return;
+  showSpinner(true);
+  try {
+    const [classesRes, filesRes] = await Promise.all([
+      fetch(API_BASE + "/api/classes", { headers: { "Authorization": "Bearer " + token } }),
+      fetch(API_BASE + "/api/files",   { headers: { "Authorization": "Bearer " + token } })
+    ]);
+
+    if (classesRes.ok) {
+      const data = await classesRes.json();
+      const mapped = data.map(c => ({
+        id: c.id, name: c.name, code: c.code,
+        students: (c.students || []).map(cs => ({
+          id:    cs.student.userId,
+          dbId:  cs.student.id,
+          name:  `${cs.student.firstName} ${cs.student.lastName}`.trim(),
+          mobile: cs.student.phone || "",
+          email:  cs.student.email || "",
+          marks:  null
+        })),
+        files: []
+      }));
+      classes.splice(0, classes.length, ...mapped);
+      renderClasses();
+      renderStudents();
+      renderAttendanceWorkspace();
+      renderFeedbackEligibility();
+    }
+
+    if (filesRes.ok) {
+      const data = await filesRes.json();
+      shared.splice(0, shared.length, ...data.map(f => ({
+        id: f.id, title: f.title, type: f.type, notes: f.notes,
+        class: f.class ? f.class.name : "—",
+        classCode: f.class ? f.class.code : "",
+        files: f.fileUrl || "No attachment"
+      })));
+      renderFiles();
+    }
+  } catch (err) {
+    console.warn("[initializeBackend]", err);
   }
-  removeStudent(classCode, studentIdx);
+  showSpinner(false);
 }
 
+/* ─── Live polling (every 15s) ───────────────────────────────── */
+let pollingInterval = null;
+function startPolling() {
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(() => {
+    if (activeStudentContext?.studentDbId) loadRealMessages(activeStudentContext.studentDbId);
+  }, 15000);
+}
+
+/* ─── Event Wiring ───────────────────────────────────────────── */
 if (studentListEl) {
-  studentListEl.addEventListener("click", (event) => {
-    if (event.target.classList.contains("remove-student-btn")) {
-      const cls = event.target.getAttribute("data-class");
-      const idx = event.target.getAttribute("data-idx");
-      asyncRemoveStudent(cls, parseInt(idx));
+  studentListEl.addEventListener("click", evt => {
+    if (evt.target.classList.contains("remove-student-btn")) {
+      removeStudentFromClass(evt.target.dataset.class, parseInt(evt.target.dataset.idx));
       return;
     }
-    const chatBtn = event.target.closest(".open-student-connect");
-    if (chatBtn) openStudentConnectModal(chatBtn.getAttribute("data-class"), Number(chatBtn.getAttribute("data-idx")));
+    const chatBtn = evt.target.closest(".open-student-connect");
+    if (chatBtn) openStudentConnectModal(chatBtn.dataset.class, Number(chatBtn.dataset.idx));
   });
 }
-
 if (fileListEl) {
-  fileListEl.addEventListener("click", (event) => {
-    const deleteBtn = event.target.closest(".delete-file-btn");
-    if (!deleteBtn) return;
-    deleteSharedFile(Number(deleteBtn.getAttribute("data-file-index")));
+  fileListEl.addEventListener("click", evt => {
+    const btn = evt.target.closest(".delete-file-btn");
+    if (btn) deleteSharedFile(Number(btn.dataset.fileIndex));
   });
 }
-
-if (studentSearchInput) studentSearchInput.addEventListener("input", renderStudents);
+if (studentSearchInput)    studentSearchInput.addEventListener("input", renderStudents);
 if (attendanceSearchInput) attendanceSearchInput.addEventListener("input", renderAttendanceSearchResults);
-if (attendanceDateInput) attendanceDateInput.addEventListener("change", renderAttendanceWorkspace);
+if (attendanceDateInput)   attendanceDateInput.addEventListener("change", renderAttendanceWorkspace);
 if (feedbackClassSelect) {
-  feedbackClassSelect.addEventListener("change", () => {
-    renderFeedbackEligibility();
-    renderTeacherFeedbackResponses();
-  });
+  feedbackClassSelect.addEventListener("change", () => { renderFeedbackEligibility(); renderTeacherFeedbackResponses(); });
 }
 if (sendFeedbackFormsButton) sendFeedbackFormsButton.addEventListener("click", sendFeedbackBroadcast);
 if (teacherNotificationToggle) teacherNotificationToggle.addEventListener("click", toggleTeacherNotifications);
 if (profileToggle) profileToggle.addEventListener("click", () => setDropdownOpen(profileDropdown.classList.contains("hidden")));
-if (openEditProfileButton) openEditProfileButton.addEventListener("click", openEditProfile);
+if (openEditProfileButton)   openEditProfileButton.addEventListener("click", openEditProfile);
 if (openTeacherPasswordPage) openTeacherPasswordPage.addEventListener("click", openTeacherPasswordReset);
-if (logoutButton) logoutButton.addEventListener("click", logout);
-if (closeEditProfileButton) closeEditProfileButton.addEventListener("click", closeEditProfile);
+if (logoutButton)            logoutButton.addEventListener("click", logout);
+if (closeEditProfileButton)  closeEditProfileButton.addEventListener("click", closeEditProfile);
 if (cancelEditProfileButton) cancelEditProfileButton.addEventListener("click", closeEditProfile);
-if (saveProfileButton) saveProfileButton.addEventListener("click", saveProfile);
-if (sendTeacherMessage) sendTeacherMessage.addEventListener("click", sendTeacherMessageToStudent);
-if (sharePersonalUpdate) sharePersonalUpdate.addEventListener("click", shareIndividualUpdate);
-if (closeStudentConnect) closeStudentConnect.addEventListener("click", closeStudentConnectModal);
+if (saveProfileButton)       saveProfileButton.addEventListener("click", saveProfile);
+if (sendTeacherMessage)      sendTeacherMessage.addEventListener("click", sendTeacherMessageToStudent);
+if (sharePersonalUpdate)     sharePersonalUpdate.addEventListener("click", shareIndividualUpdate);
+if (closeStudentConnect)     closeStudentConnect.addEventListener("click", closeStudentConnectModal);
 if (callStudentButton) {
   callStudentButton.addEventListener("click", () => {
-    if (!activeStudentContext?.studentMobile) return toast("No mobile number on record");
+    if (!activeStudentContext?.studentMobile) return toast("No mobile number on record", "error");
     window.location.href = `tel:${activeStudentContext.studentMobile}`;
   });
 }
-
-document.getElementById("attTable")?.addEventListener("change", (event) => {
-  if (event.target.matches("input[type='checkbox']")) updateCount();
+document.getElementById("attTable")?.addEventListener("change", evt => {
+  if (evt.target.matches("input[type='checkbox']")) updateCount();
 });
-
-document.getElementById("attendanceHistoryList")?.addEventListener("click", (event) => {
-  const button = event.target.closest(".load-attendance-btn");
-  if (!button) return;
-  document.getElementById("attClass").value = button.getAttribute("data-class");
-  if (attendanceDateInput) attendanceDateInput.value = button.getAttribute("data-date");
+document.getElementById("attendanceHistoryList")?.addEventListener("click", evt => {
+  const btn = evt.target.closest(".load-attendance-btn");
+  if (!btn) return;
+  document.getElementById("attClass").value = btn.dataset.class;
+  if (attendanceDateInput) attendanceDateInput.value = btn.dataset.date;
   showSection("attendance");
   renderAttendanceWorkspace();
 });
-
 if (studentConnectModal) {
-  studentConnectModal.addEventListener("click", (event) => {
-    if (event.target === studentConnectModal) closeStudentConnectModal();
-  });
+  studentConnectModal.addEventListener("click", evt => { if (evt.target === studentConnectModal) closeStudentConnectModal(); });
 }
-
 if (editProfileModal) {
-  editProfileModal.addEventListener("click", (event) => {
-    if (event.target === editProfileModal) closeEditProfile();
-  });
+  editProfileModal.addEventListener("click", evt => { if (evt.target === editProfileModal) closeEditProfile(); });
 }
-
-document.addEventListener("click", (event) => {
-  if (!event.target.closest(".notification-shell")) {
+document.addEventListener("click", evt => {
+  if (!evt.target.closest(".notification-shell")) {
     teacherNotificationPanel?.classList.add("hidden");
     teacherNotificationToggle?.setAttribute("aria-expanded", "false");
   }
-  if (!event.target.closest(".profile-menu")) setDropdownOpen(false);
+  if (!evt.target.closest(".profile-menu")) setDropdownOpen(false);
 });
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
+document.addEventListener("keydown", evt => {
+  if (evt.key === "Escape") {
     teacherNotificationPanel?.classList.add("hidden");
     teacherNotificationToggle?.setAttribute("aria-expanded", "false");
     setDropdownOpen(false);
@@ -1316,17 +1285,37 @@ document.addEventListener("keydown", (event) => {
     closeStudentConnectModal();
   }
 });
+window.addEventListener("storage", evt => {
+  if (evt.key !== STORAGE_KEY) return;
+  const local = loadLocalData();
+  directShares.splice(0,  directShares.length,  ...local.directShares);
+  conversations.splice(0, conversations.length, ...local.conversations);
+  notifications.splice(0, notifications.length, ...local.notifications);
+  feedbackForms.splice(0, feedbackForms.length,  ...local.feedbackForms);
+  renderStudents();
+  renderTeacherFeedbackResponses();
+  renderTeacherNotifications();
+});
 
-window.addEventListener("storage", (event) => {
-  if (event.key !== STORAGE_KEY) return;
-  const latest = loadSharedData();
-  classes.splice(0, classes.length, ...latest.classes);
-  shared.splice(0, shared.length, ...latest.shared);
-  attendanceRecords.splice(0, attendanceRecords.length, ...latest.attendanceRecords);
-  directShares.splice(0, directShares.length, ...latest.directShares);
-  conversations.splice(0, conversations.length, ...latest.conversations);
-  notifications.splice(0, notifications.length, ...latest.notifications);
-  feedbackForms.splice(0, feedbackForms.length, ...latest.feedbackForms);
+/* ─── Lookup on blur ─────────────────────────────────────────── */
+const studentIdInput = document.getElementById("studentId");
+if (studentIdInput) studentIdInput.addEventListener("blur", lookupStudent);
+
+/* ─── Set today's date ───────────────────────────────────────── */
+if (attendanceDateInput && !attendanceDateInput.value) {
+  attendanceDateInput.value = new Date().toISOString().split("T")[0];
+}
+
+/* ─── Init ───────────────────────────────────────────────────── */
+(function init() {
+  const local = loadLocalData();
+  directShares.splice(0,  directShares.length,  ...local.directShares);
+  conversations.splice(0, conversations.length, ...local.conversations);
+  notifications.splice(0, notifications.length, ...local.notifications);
+  feedbackForms.splice(0, feedbackForms.length,  ...local.feedbackForms);
+
+  applyTeacherProfile(currentUser);
+  showSection("home");
   renderClasses();
   renderStudents();
   renderFiles();
@@ -1334,82 +1323,7 @@ window.addEventListener("storage", (event) => {
   renderAttendanceSearchResults();
   renderTeacherFeedbackResponses();
   renderTeacherNotifications();
-  if (activeStudentContext) {
-    const refreshed = getStudentContext(activeStudentContext.classCode, activeStudentContext.idx);
-    if (refreshed) {
-      activeStudentContext = refreshed;
-      renderTeacherConversation();
-      renderTeacherStudentResources();
-    }
-  }
-});
 
-if (attendanceDateInput && !attendanceDateInput.value) {
-  attendanceDateInput.value = new Date().toISOString().split("T")[0];
-}
-
-async function initializeBackend() {
-  try {
-    const token = localStorage.getItem('attendance360Token');
-    if (!token) return;
-
-    const classesRes = await fetch(API_BASE + '/api/classes', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    const classesData = await classesRes.json();
-
-    if (classesRes.ok) {
-      const mappedClasses = classesData.map(c => ({
-        id: c.id,
-        name: c.name,
-        code: c.code,
-        students: c.students ? c.students.map(cs => ({
-          id: cs.student.userId,
-          dbId: cs.student.id,
-          name: cs.student.firstName + ' ' + cs.student.lastName,
-          mobile: cs.student.phone,
-          marks: null
-        })) : [],
-        files: c.files || []
-      }));
-
-      classes.splice(0, classes.length, ...mappedClasses);
-      renderClasses();
-      renderStudents();
-    }
-
-    const filesRes = await fetch(API_BASE + '/api/files', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    const filesData = await filesRes.json();
-
-    if (filesRes.ok) {
-      shared.splice(0, shared.length, ...filesData.map(f => ({
-        id: f.id,
-        title: f.title,
-        type: f.type,
-        notes: f.notes,
-        class: f.class ? f.class.name : '',
-        classCode: f.class ? f.class.code : '',
-        files: f.fileUrl || "No attachment"
-      })));
-      renderFiles();
-    }
-  } catch (err) {
-    console.warn("Failed to initialize backend data", err);
-  }
-}
-
-renderClasses();
-renderStudents();
-renderFiles();
-renderAttendanceHistory();
-renderAttendanceSearchResults();
-renderTeacherFeedbackResponses();
-renderTeacherNotifications();
-showSection("home");
-applyTeacherProfile(currentUser);
-
-// Initialize Backend to overwrite default/local state
-initializeBackend();
-
+  // Load from backend (overwrites local)
+  initializeBackend().then(() => startPolling());
+})();
