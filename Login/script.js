@@ -196,43 +196,10 @@ if (forgotPasswordCancel) {
 
 if (forgotPasswordSubmit) {
   forgotPasswordSubmit.addEventListener("click", () => {
-    if (!selectedRole) {
-      setMessage("Choose Teacher or Student first.", "error");
-      return;
-    }
-
-    const identity = loginIdentity.value.trim().toLowerCase();
-    const newPassword = forgotNewPassword.value;
-    const confirmNewPassword = forgotConfirmPassword.value;
-
-    if (!identity || !newPassword || !confirmNewPassword) {
-      setMessage("Enter your identity, new password, and confirm password.", "error");
-      return;
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      setMessage("New password and confirm password do not match.", "error");
-      return;
-    }
-
-    const users = getUsers();
-    const userIndex = users.findIndex((entry) => {
-      const email = (entry.email || "").toLowerCase();
-      const userId = (entry.userId || "").toLowerCase();
-      const username = (entry.username || "").toLowerCase();
-      return entry.role === selectedRole && (email === identity || userId === identity || username === identity);
-    });
-
-    if (userIndex === -1) {
-      setMessage(`${roleConfig[selectedRole].label} account not found for that username, email, or ID.`, "error");
-      return;
-    }
-
-    users[userIndex].password = newPassword;
-    saveUsers(users);
-    loginPassword.value = "";
-    setForgotPasswordOpen(false);
-    setMessage("Password changed successfully. You can now log in with the new password.", "success");
+    setMessage(
+      "Password reset is managed by the administrator. Please contact support or re-register with a new email.",
+      "error"
+    );
   });
 }
 

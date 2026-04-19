@@ -493,3 +493,81 @@ footer {
   .pdf-modal-content { height: min(88vh, 900px); }
   .grid-2 { grid-template-columns: 1fr; }
 }
+/* ─── Toast & Spinner ───────────────────────────────────────── */
+@keyframes slideInToast {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spinnerSlide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+/* ─── Code tag ──────────────────────────────────────────────── */
+code {
+  font-size: 0.82em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(110,203,255,0.1);
+  border: 1px solid rgba(110,203,255,0.25);
+  color: var(--primary);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+/* ─── Empty state ───────────────────────────────────────────── */
+.empty-state {
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.12);
+  color: var(--muted);
+  font-size: 14px;
+}
+/* ─── Messages section ──────────────────────────────────────── */
+.messages-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  margin-top: 12px;
+}
+.messages-header strong { font-size: 1rem; }
+.messages-header p { margin: 0; font-size: 0.82rem; color: var(--muted); }
+#studentChatThread {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  min-height: 220px;
+  max-height: 340px;
+}
+/* Colored chip variants */
+.chip.present {
+  background: rgba(22,163,74,0.18);
+  color: #4ade80;
+  border-color: rgba(74,222,128,0.35);
+}
+.chip.absent {
+  background: rgba(220,38,38,0.18);
+  color: #f87171;
+  border-color: rgba(248,113,113,0.35);
+}
+/* Chat btn (student portal) */
+.chat-btn {
+  border: 1px solid rgba(99,102,241,0.4);
+  background: rgba(99,102,241,0.12);
+  color: #c7d2fe;
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.2s, transform 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.chat-btn:hover { background: rgba(99,102,241,0.25); transform: translateY(-1px); }
+/* Lookup hint */
+.lookup-hint { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
+.field-group { margin-bottom: 14px; }

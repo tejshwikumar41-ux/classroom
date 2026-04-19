@@ -15,6 +15,9 @@ if (
   API_BASE = "https://classroom-seven-beta.vercel.app";
 }
 
+// Map key → teacher context object (used by data-teacher-key on buttons)
+const teacherContextMap = {};
+
 /* ─── State ─────────────────────────────────────────────────── */
 let enrolledClasses   = [];   // from backend
 let sharedFiles       = [];   // from backend
@@ -196,13 +199,32 @@ function renderStudentClasses() {
   if (studentClassCount) studentClassCount.textContent = `${enrolledClasses.length} active`;
 
   enrolledClasses.forEach((course, index) => {
-    const attEntries = getAttendanceEntriesForStudent(course.id);
-    const stats      = getAttendanceStats(attEntries);
-    const teacherName = course.teacher ? `${course.teacher.firstName} ${course.teacher.lastName}`.trim() : "Teacher";
-    const schedule    = ["Mon 9:00 AM", "Tue 11:00 AM", "Wed 3:00 PM", "Thu 10:30 AM", "Fri 4:00 PM"][index % 5];
+    const attEntries  = getAttendanceEntriesForStudent(course.id);
+    const stats       = getAttendanceStats(attEntries);
+    const teacherName = course.teacher
+      ? `${course.teacher.firstName} ${course.teacher.lastName}`.trim()
+      : "Teacher";
     const enrolled    = course.students ? course.students.length : 0;
+
+    // Store teacher context in map so buttons can reference it safely
+    const ctxKey = `${course.id}-${course.teacher?.id || "none"}`;
+    if (course.teacher?.id) {
+      teacherContextMap[ctxKey] = {
+        teacherDbId:    course.teacher.id,
+        teacherName,
+        teacherUserId:  course.teacher.userId || "",
+        classCode:      course.code,
+        className:      course.name
+      };
+    }
+
     const card = document.createElement("div");
     card.className = "item";
+
+    const chatBtnHtml = course.teacher?.id
+      ? `<button class="chat-btn msg-teacher-btn" data-teacher-key="${ctxKey}" style="margin-top:8px;">💬 Message Teacher</button>`
+      : "";
+
     card.innerHTML = `
       <div>
         <strong>${course.name}</strong>
@@ -211,7 +233,7 @@ function renderStudentClasses() {
       </div>
       <div style="text-align:right;">
         <span class="chip">${stats.percent}% attendance</span>
-        ${course.teacher?.id ? `<br><button class="chat-btn" style="margin-top:6px;" onclick="openMessageTeacher(${JSON.stringify({ teacherDbId: course.teacher.id, teacherName: teacherName, teacherUserId: course.teacher.userId, classCode: course.code, className: course.name })})">💬 Message Teacher</button>` : ""}
+        ${chatBtnHtml}
       </div>`;
     studentClassesList.appendChild(card);
   });
@@ -400,7 +422,7 @@ function renderStudentChat() {
   }
 
   if (!activeTeacherCtx) {
-    studentChatThread.innerHTML = '<div class="item column"><strong>Select a class</strong><p>Go to My Classes and tap "Message Teacher" to open a conversation.</p></div>';
+    studentChatThread.innerHTML = '<div class="item column"><strong>Select a class</strong><p>Go to My Classes and tap “Message Teacher” to open a conversation.</p></div>';
     return;
   }
   if (!messages.length) {
@@ -409,10 +431,17 @@ function renderStudentChat() {
   }
 
   messages.forEach(msg => {
-    const isMe = msg.sender?.id === currentUser?.id || msg.sender?.userId === currentUser?.userId;
+    // isMe = this message was sent by the current student
+    const isMe = (msg.sender?.id !== undefined && msg.sender.id === currentUser?.id)
+               || (msg.sender?.userId && msg.sender.userId === currentUser?.userId)
+               || msg.sender?.role === "student";
     const bubble = document.createElement("div");
-    bubble.className = `chat-bubble ${isMe ? "teacher" : "student"}`; // repurpose classes for self/other
-    const senderName = `${msg.sender?.firstName || ""} ${msg.sender?.lastName || ""}`.trim() || "You";
+    // student (me) aligns right  → use "student" class (justify-self: end)
+    // teacher aligns left        → use "teacher" class (justify-self: start)
+    bubble.className = `chat-bubble ${isMe ? "student" : "teacher"}`;
+    const senderName = isMe
+      ? `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() || "You"
+      : `${msg.sender?.firstName || ""} ${msg.sender?.lastName || ""}`.trim() || "Teacher";
     bubble.innerHTML = `<span class="chat-meta">${senderName} · ${formatTimestamp(msg.createdAt)}</span><div>${msg.text}</div>`;
     studentChatThread.appendChild(bubble);
   });
@@ -724,14 +753,15 @@ function startPolling() {
   }, 15000);
 }
 
-/* ─── Messages section helper ────────────────────────────────── */
-// Also handle "Reply" button click from messages section when no activeContext
-if (sendStudentReply) {
-  sendStudentReply.addEventListener("click", () => {
-    if (!activeTeacherCtx) {
-      toast("Go to My Classes and tap 'Message Teacher' to start a conversation", "error");
-      return;
-    }
+/* ─── Delegated click: "Message Teacher" buttons in class cards ── */
+if (studentClassesList) {
+  studentClassesList.addEventListener("click", evt => {
+    const btn = evt.target.closest(".msg-teacher-btn");
+    if (!btn) return;
+    const key = btn.dataset.teacherKey;
+    const ctx = teacherContextMap[key];
+    if (!ctx) { toast("Teacher info not available", "error"); return; }
+    openMessageTeacher(ctx);
   });
 }
 
