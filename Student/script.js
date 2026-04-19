@@ -96,7 +96,7 @@ if (!localStorage.getItem(STORAGE_KEY)) {
 }
 
 function applyStudentProfile(user) {
-  if (!user || user.role !== "student") {
+  if (!user || user.role?.toLowerCase().trim() !== "student") {
     window.location.href = "../Login/index.html";
     return;
   }

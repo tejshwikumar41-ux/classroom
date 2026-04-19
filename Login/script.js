@@ -152,7 +152,9 @@ function clearSession() {
 }
 
 function goToPortal(role) {
-  window.location.href = roleConfig[role].destination;
+  const normRole = role?.toLowerCase().trim();
+  const target = roleConfig[normRole]?.destination || roleConfig.student.destination;
+  window.location.href = target;
 }
 
 roleButtons.forEach((button) => {
@@ -249,7 +251,7 @@ loginForm.addEventListener("submit", async (event) => {
     const response = await fetch(API_BASE + '/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identity, password, role: selectedRole })
+      body: JSON.stringify({ identity, password, role: selectedRole?.toLowerCase().trim() })
     });
 
     const data = await response.json();

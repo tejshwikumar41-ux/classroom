@@ -125,7 +125,7 @@ function getDisplayName(user) {
 }
 
 function applyTeacherProfile(user) {
-  if (!user || user.role !== "teacher") {
+  if (!user || user.role?.toLowerCase().trim() !== "teacher") {
     window.location.href = "../Login/index.html";
     return;
   }
