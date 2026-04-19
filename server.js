@@ -152,7 +152,7 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
 
 app.post('/api/classes', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Only teachers can create classes' });
+    if (req.user.role.toLowerCase().trim() !== 'teacher') return res.status(403).json({ error: 'Only teachers can create classes' });
     const { name, code } = req.body;
     
     const existing = await prisma.class.findUnique({ where: { code } });
@@ -169,7 +169,7 @@ app.post('/api/classes', authenticateToken, async (req, res) => {
 
 app.get('/api/classes', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role === 'teacher') {
+    if (req.user.role.toLowerCase().trim() === 'teacher') {
       const classes = await prisma.class.findMany({ 
         where: { teacherId: req.user.id },
         include: {
@@ -200,12 +200,12 @@ app.get('/api/classes', authenticateToken, async (req, res) => {
 
 app.post('/api/classes/:classId/students', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
+    if (req.user.role.toLowerCase().trim() !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
     const { classId } = req.params;
     const { studentId } = req.body; // Actually the userId (e.g. STD123)
 
     const student = await prisma.user.findUnique({ where: { userId: studentId } });
-    if (!student || student.role !== 'student') return res.status(404).json({ error: 'Student not found' });
+    if (!student || student.role.toLowerCase().trim() !== 'student') return res.status(404).json({ error: 'Student not found' });
 
     const existingLink = await prisma.classStudent.findUnique({
       where: { classId_studentId: { classId: parseInt(classId), studentId: student.id } }
@@ -230,7 +230,7 @@ app.post('/api/classes/:classId/students', authenticateToken, async (req, res) =
 
 app.delete('/api/classes/:classId/students/:studentId', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
+    if (req.user.role.toLowerCase().trim() !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
     
     const classRecord = await prisma.class.findUnique({ where: { id: parseInt(req.params.classId) } });
     if (!classRecord || classRecord.teacherId !== req.user.id) return res.status(403).json({ error: "No permission" });
@@ -266,7 +266,7 @@ app.get('/api/classes/:classId/students', authenticateToken, async (req, res) =>
 
 app.post('/api/files', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
+    if (req.user.role.toLowerCase().trim() !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
     const { title, type, notes, classId } = req.body;
     
     const file = await prisma.file.create({
@@ -280,7 +280,7 @@ app.post('/api/files', authenticateToken, async (req, res) => {
 
 app.get('/api/files', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role === 'teacher') {
+    if (req.user.role.toLowerCase().trim() === 'teacher') {
       const files = await prisma.file.findMany({
         where: { teacherId: req.user.id },
         include: { class: true }
@@ -307,7 +307,7 @@ app.get('/api/files', authenticateToken, async (req, res) => {
 
 app.post('/api/attendance', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
+    if (req.user.role.toLowerCase().trim() !== 'teacher') return res.status(403).json({ error: 'Only teachers are allowed to perform this action' });
     const { date, classId, records } = req.body;
     // records: [{ studentId: Int, status: 'present' | 'absent' }]
 

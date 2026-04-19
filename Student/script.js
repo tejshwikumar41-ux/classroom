@@ -255,15 +255,7 @@ function renderStudentClasses() {
   const attendanceEntries = getStudentAttendanceEntries(sharedData, match);
   studentClassesList.innerHTML = "";
 
-  const ownClasses = sharedData.classes.filter((course) => {
-    if(!course.students) return false;
-    return course.students.some((student) => {
-      if (match && student.id === match.student.id) return true;
-      const sameId = currentUser && currentUser.userId && student.id && student.id.toLowerCase() === currentUser.userId.toLowerCase();
-      const samePhone = currentUser && currentUser.phone && student.mobile && student.mobile.trim() === currentUser.phone.trim();
-      return sameId || samePhone;
-    });
-  });
+  const ownClasses = sharedData.classes;
   studentClassCount.textContent = `${ownClasses.length} active`;
 
   if (!ownClasses.length) {
