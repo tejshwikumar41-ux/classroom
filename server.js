@@ -33,13 +33,15 @@ const authenticateToken = (req, res, next) => {
     try {
       const user = await prisma.user.findUnique({ where: { id: decoded.id } });
       if (!user) return res.status(403).json({ error: 'User not found' });
-      req.user = user;
+      // Normalize role so comparisons are always safe regardless of DB casing
+      req.user = { ...user, role: user.role.toLowerCase().trim() };
       next();
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
   });
 };
+
 
 /* ==================
    AUTH ENDPOINTS
@@ -79,6 +81,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    // Always store role as lowercase for consistency
     const user = await prisma.user.create({
       data: { role: normRole, firstName, lastName, email, username, phone, userId, password: hashedPassword }
     });
@@ -89,6 +92,7 @@ app.post('/api/auth/register', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Login
 app.post('/api/auth/login', async (req, res) => {
