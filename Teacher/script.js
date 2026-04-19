@@ -960,12 +960,17 @@ function openStudentConnectModal(classCode, idx) {
   renderTeacherConversation();
   renderTeacherStudentResources();
   studentConnectModal.classList.remove("hidden");
-  // Load real messages from backend
-  if (student.dbId) loadRealMessages(student.dbId);
+  // Load real messages from backend and restart fast polling
+  if (student.dbId) {
+    loadRealMessages(student.dbId);
+    startPolling();
+  }
 }
 function closeStudentConnectModal() {
   studentConnectModal.classList.add("hidden");
   activeStudentContext = null;
+  // Pause polling — no active chat open
+  if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
 }
 
 async function loadRealMessages(studentDbId) {
@@ -1061,13 +1066,23 @@ async function sendTeacherMessageToStudent() {
         body: JSON.stringify({ receiverId: activeStudentContext.studentDbId, text })
       });
       if (res.ok) {
-        const data = await res.json();
-        localMsg.id = data.id; // stamp with real DB id
-        persistLocalData();
+        toast("Message sent", "success");
+        // Reload full thread so we get confirmed message + any student replies
+        await loadRealMessages(activeStudentContext.studentDbId);
+      } else {
+        // Roll back optimistic message
+        conv.messages = conv.messages.filter(m => m !== localMsg);
+        renderTeacherConversation();
+        const d = await res.json();
+        toast(d.error || "Failed to send message", "error");
       }
-    } catch (e) { console.warn("[sendMessage]", e); }
+    } catch (e) {
+      console.warn("[sendMessage]", e);
+      toast("Message saved locally — backend offline", "error");
+    }
+  } else {
+    toast("Message sent", "success");
   }
-  toast("Message sent", "success");
 }
 
 async function shareIndividualUpdate() {
@@ -1202,13 +1217,13 @@ async function initializeBackend() {
   showSpinner(false);
 }
 
-/* ─── Live polling (every 15s) ───────────────────────────────── */
+/* ─── Live polling (every 5s when student modal is open) ─────── */
 let pollingInterval = null;
 function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
   pollingInterval = setInterval(() => {
     if (activeStudentContext?.studentDbId) loadRealMessages(activeStudentContext.studentDbId);
-  }, 15000);
+  }, 5000);
 }
 
 /* ─── Event Wiring ───────────────────────────────────────────── */

@@ -390,8 +390,10 @@ function openMessageTeacher(ctx) {
 
   showSection("messages");
   renderStudentChat();
-  // Load from backend
+  // Load from backend immediately
   loadMessagesFromTeacher(ctx.teacherDbId);
+  // Restart fast polling for active chat
+  startPolling();
 }
 
 async function loadMessagesFromTeacher(teacherDbId) {
@@ -405,6 +407,59 @@ async function loadMessagesFromTeacher(teacherDbId) {
     apiMessages[teacherDbId] = data;
     renderStudentChat();
   } catch (e) { console.warn("[loadMessages]", e); }
+}
+
+// Load all conversations (contacts the student has messaged or received from)
+async function loadAllConversations() {
+  if (!getToken()) return;
+  try {
+    const res = await fetch(API_BASE + "/api/messages", {
+      headers: { "Authorization": "Bearer " + getToken() }
+    });
+    if (!res.ok) return;
+    const contacts = await res.json(); // [{id, firstName, lastName, userId, role, lastMessage, lastAt}]
+
+    // For each contact, load their full message thread
+    for (const contact of contacts) {
+      const msgRes = await fetch(API_BASE + `/api/messages/${contact.id}`, {
+        headers: { "Authorization": "Bearer " + getToken() }
+      });
+      if (msgRes.ok) {
+        apiMessages[contact.id] = await msgRes.json();
+        // If this contact matches our active teacher ctx, refresh chat
+        if (activeTeacherCtx && contact.id === activeTeacherCtx.teacherDbId) {
+          renderStudentChat();
+        }
+      }
+    }
+
+    // Auto-restore context: if no active teacher yet, pick the most recent contact
+    // that matches a teacher in our enrolled classes so Messages tab shows real data
+    if (!activeTeacherCtx && contacts.length > 0 && enrolledClasses.length > 0) {
+      // contacts are sorted desc by lastAt — try to match the first teacher contact
+      for (const contact of contacts) {
+        if (contact.role !== "teacher") continue;
+        // Find which enrolled class this teacher teaches
+        const course = enrolledClasses.find(c => c.teacher && c.teacher.id === contact.id);
+        if (course) {
+          activeTeacherCtx = {
+            teacherDbId:   contact.id,
+            teacherName:   `${contact.firstName} ${contact.lastName}`.trim(),
+            teacherUserId: contact.userId || "",
+            classCode:     course.code,
+            className:     course.name
+          };
+          // Update chat header
+          const header = document.getElementById("chatTeacherName");
+          const meta   = document.getElementById("chatTeacherMeta");
+          if (header) header.textContent = activeTeacherCtx.teacherName;
+          if (meta)   meta.textContent   = activeTeacherCtx.className;
+          renderStudentChat();
+          break;
+        }
+      }
+    }
+  } catch (e) { console.warn("[loadAllConversations]", e); }
 }
 
 function renderStudentChat() {
@@ -432,9 +487,9 @@ function renderStudentChat() {
 
   messages.forEach(msg => {
     // isMe = this message was sent by the current student
-    const isMe = (msg.sender?.id !== undefined && msg.sender.id === currentUser?.id)
-               || (msg.sender?.userId && msg.sender.userId === currentUser?.userId)
-               || msg.sender?.role === "student";
+    // Use DB id first (most reliable), then userId string — avoid role fallback
+    const isMe = (msg.sender?.id !== undefined && currentUser?.id !== undefined && msg.sender.id === currentUser.id)
+               || (msg.sender?.userId && currentUser?.userId && msg.sender.userId === currentUser.userId);
     const bubble = document.createElement("div");
     // student (me) aligns right  → use "student" class (justify-self: end)
     // teacher aligns left        → use "teacher" class (justify-self: start)
@@ -489,11 +544,14 @@ async function sendReplyToTeacher() {
       body: JSON.stringify({ receiverId: teacherDbId, text })
     });
     if (res.ok) {
-      const data = await res.json();
-      tempMsg.id = data.id;
       toast("Message sent!", "success");
+      // Reload full thread from server to confirm and pick up any teacher replies
+      await loadMessagesFromTeacher(teacherDbId);
     } else {
       const d = await res.json();
+      // Roll back optimistic message
+      apiMessages[teacherDbId] = apiMessages[teacherDbId].filter(m => m !== tempMsg);
+      renderStudentChat();
       toast(d.error || "Failed to send message", "error");
     }
   } catch (e) {
@@ -744,13 +802,15 @@ async function initializeBackend() {
   showSpinner(false);
 }
 
-/* ─── Live polling (messages every 15s) ──────────────────────── */
+/* ─── Live polling (messages every 5s when chat is active) ───── */
 let pollingInterval = null;
 function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
   pollingInterval = setInterval(() => {
-    if (activeTeacherCtx?.teacherDbId) loadMessagesFromTeacher(activeTeacherCtx.teacherDbId);
-  }, 15000);
+    if (activeTeacherCtx?.teacherDbId) {
+      loadMessagesFromTeacher(activeTeacherCtx.teacherDbId);
+    }
+  }, 5000);
 }
 
 /* ─── Delegated click: "Message Teacher" buttons in class cards ── */
@@ -764,6 +824,15 @@ if (studentClassesList) {
     openMessageTeacher(ctx);
   });
 }
+
+/* ─── Also reload messages when navigating to Messages section ── */
+document.querySelectorAll("nav a").forEach(link => {
+  link.addEventListener("click", () => {
+    if (link.getAttribute("data-target") === "messages" && activeTeacherCtx?.teacherDbId) {
+      loadMessagesFromTeacher(activeTeacherCtx.teacherDbId);
+    }
+  });
+});
 
 /* ─── Init ───────────────────────────────────────────────────── */
 (function init() {
@@ -788,5 +857,9 @@ if (studentClassesList) {
   showSection("home");
 
   // Hit backend to get real data
-  initializeBackend().then(() => startPolling());
+  initializeBackend().then(() => {
+    startPolling();
+    // Pre-load all conversations so Messages tab is ready even without opening a class first
+    loadAllConversations();
+  });
 })();
