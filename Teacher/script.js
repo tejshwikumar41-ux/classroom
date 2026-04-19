@@ -553,6 +553,7 @@ async function addStudent() {
     classItem.students.push({ 
         name: apiStudent ? `${apiStudent.firstName} ${apiStudent.lastName}`.trim() : name, 
         id: apiStudent ? apiStudent.userId : id, 
+        dbId: apiStudent ? apiStudent.id : null,
         mobile: apiStudent ? apiStudent.phone : mobile, 
         marks: null 
     });
@@ -724,6 +725,7 @@ function renderAttendanceWorkspace() {
     const checked = record ? record.present.some((entry) => entry.id === student.id) : true;
     tr.dataset.studentName = student.name;
     tr.dataset.studentId = student.id;
+    if (student.dbId) tr.dataset.studentDbId = student.dbId;
     tr.innerHTML = `<td>${student.name}</td>
       <td>${student.id}</td>
       <td>${checked ? "Present" : "Absent"}</td>
@@ -817,7 +819,7 @@ function saveAttendance() {
   const absent = [];
 
   rows.forEach((row) => {
-    const student = { name: row.dataset.studentName || "", id: row.dataset.studentId || "" };
+    const student = { name: row.dataset.studentName || "", id: row.dataset.studentId || "", dbId: parseInt(row.dataset.studentDbId) || null };
     const checked = Boolean(row.querySelector("input[type='checkbox']")?.checked);
     if (checked) present.push(student);
     else absent.push(student);
@@ -1363,6 +1365,7 @@ async function initializeBackend() {
         code: c.code,
         students: c.students ? c.students.map(cs => ({
           id: cs.student.userId,
+          dbId: cs.student.id,
           name: cs.student.firstName + ' ' + cs.student.lastName,
           mobile: cs.student.phone,
           marks: null

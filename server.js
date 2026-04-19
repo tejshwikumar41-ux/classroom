@@ -218,6 +218,7 @@ app.post('/api/classes/:classId/students', authenticateToken, async (req, res) =
     }
 
     res.json({ message: 'Student added successfully', student: {
+        id: student.id,
         userId: student.userId,
         firstName: student.firstName,
         lastName: student.lastName,
