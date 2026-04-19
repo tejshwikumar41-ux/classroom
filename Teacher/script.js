@@ -365,6 +365,48 @@ function renderClasses() {
   refreshClassOptions();
   renderAttendanceWorkspace();
   renderFeedbackEligibility();
+  renderQuickStats();
+}
+
+function renderQuickStats() {
+  const statAtt = document.getElementById("quickStatAttendance");
+  const statAss = document.getElementById("quickStatAssignments");
+  const classList = document.getElementById("quickStatClasses");
+
+  if (statAtt) {
+    let totalEntries = 0;
+    let presentEntries = 0;
+    classes.forEach(cls => {
+      const clsEntries = cls.students.flatMap(s => getStudentAttendanceEntries(s.id, cls.code));
+      totalEntries += clsEntries.length;
+      presentEntries += clsEntries.filter(e => e.status === "Present").length;
+    });
+    const percent = totalEntries ? Math.round((presentEntries / totalEntries) * 100) : 0;
+    statAtt.textContent = totalEntries ? `${percent}%` : "—";
+  }
+
+  if (statAss) {
+    statAss.textContent = shared.length > 0 ? shared.length : "0";
+  }
+
+  if (classList) {
+    if (!classes.length) {
+      classList.innerHTML = '<div class="empty-state" style="margin-top:12px;">Classes will appear here once created.</div>';
+    } else {
+      classList.innerHTML = "";
+      // Show up to 3 classes
+      classes.slice(0, 3).forEach(cls => {
+        const stats = getAttendanceStats(cls.students.flatMap(s => getStudentAttendanceEntries(s.id, cls.code)));
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <div><strong>${cls.name}</strong><p>${cls.students.length} enrolled</p></div>
+          <span class="badge ${stats.percent < 50 && stats.total > 0 ? 'soft' : ''}">${stats.percent}% avg</span>
+        `;
+        classList.appendChild(div);
+      });
+    }
+  }
 }
 
 /* ─── Create Class ───────────────────────────────────────────── */
@@ -635,6 +677,7 @@ function renderFiles() {
   list.innerHTML = "";
   if (!shared.length) {
     list.innerHTML = '<div class="empty-state">No files shared yet.</div>';
+    renderQuickStats();
     return;
   }
   shared.forEach((item, sharedIdx) => {
@@ -655,6 +698,7 @@ function renderFiles() {
       </div>`;
     list.appendChild(div);
   });
+  renderQuickStats();
 }
 
 function deleteSharedFile(sharedIdx) {
@@ -764,6 +808,7 @@ async function saveAttendance() {
   renderAttendanceWorkspace();
   renderAttendanceHistory();
   renderAttendanceSearchResults();
+  renderQuickStats();
   toast(`Attendance saved for ${cls.name} · ${formatAttendanceDate(date)}`, "success");
 
   // Persist to backend
