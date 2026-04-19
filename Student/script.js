@@ -2,6 +2,12 @@
    Attendance360 — Student Portal Script
    ============================================================ */
 
+/* ─── Theme (runs immediately to prevent flash of wrong theme) ─ */
+(function() {
+  const saved = localStorage.getItem("attendance360Theme") || "dark";
+  document.documentElement.setAttribute("data-theme", saved);
+})();
+
 const STORAGE_KEY  = "attendance360-shared-data";
 const SESSION_KEY  = "attendance360CurrentUser";
 const TOKEN_KEY    = "attendance360Token";

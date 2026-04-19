@@ -4,28 +4,57 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Attendance360 · Login</title>
+  <meta name="description" content="Attendance360 — Premium attendance management for elite educational institutions. Sign in as teacher or student.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Animated background canvas -->
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- Light/Dark mode toggle -->
+  <button id="themeToggle" class="theme-toggle-login" type="button" aria-label="Toggle light/dark mode" title="Toggle theme">🌙</button>
+
   <main class="auth-shell">
+    <!-- ── Hero Panel ────────────────────────────────── -->
     <section class="hero-panel">
       <div class="hero-copy">
-        <div class="pill">Attendance360</div>
-        <h1>One login space for teachers and students.</h1>
-        <p>Choose your role, sign in with your ID or email, or create a new account in a few quick steps.</p>
+        <div class="hero-brand">
+          <div class="hero-brand-icon">🎓</div>
+          <span>Attendance360</span>
+        </div>
+
+        <div class="hero-eyebrow">For elite schools &amp; universities</div>
+
+        <h1 class="hero-headline">
+          One login space<br>for <em>teachers</em><br>&amp; <em>students.</em>
+        </h1>
+
+        <p class="hero-desc">
+          A premium academic platform built for institutions that demand clarity,
+          elegance, and real-time collaboration — all in one dashboard.
+        </p>
+
         <div class="hero-points">
           <div class="hero-item">
-            <strong>Teacher</strong>
-            <span>Manage classes, files, quizzes, and attendance.</span>
+            <div class="hero-item-icon purple">📋</div>
+            <div>
+              <strong>Teacher</strong>
+              <span>Manage classes, share files, run quizzes, and record live attendance from a single command center.</span>
+            </div>
           </div>
           <div class="hero-item">
-            <strong>Student</strong>
-            <span>View classes, track attendance, and access files.</span>
+            <div class="hero-item-icon green">📚</div>
+            <div>
+              <strong>Student</strong>
+              <span>View classes, track daily attendance, access shared resources, and message your teachers directly.</span>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- ── Auth Card ─────────────────────────────────── -->
     <section class="auth-card">
       <div class="brand-row">
         <div class="brand"><span class="dot"></span>Attendance360</div>
@@ -33,8 +62,8 @@
       </div>
 
       <div class="role-picker">
-        <button class="role-btn" type="button" data-role="teacher">Login as Teacher</button>
-        <button class="role-btn" type="button" data-role="student">Login as Student</button>
+        <button class="role-btn" type="button" data-role="teacher"><span>🧑‍🏫 Login as Teacher</span></button>
+        <button class="role-btn" type="button" data-role="student"><span>🎒 Login as Student</span></button>
       </div>
 
       <div class="form-toggle">
@@ -42,6 +71,7 @@
         <button class="toggle-btn" type="button" data-mode="register">Register</button>
       </div>
 
+      <!-- Login Form -->
       <form id="loginForm" class="auth-form active">
         <h2 id="loginTitle">Choose a role to continue</h2>
         <p class="muted" id="loginSubtitle">You can sign in using your username, teacher or student ID, or your email address.</p>
@@ -72,9 +102,10 @@
         </div>
 
         <button id="loginSubmit" class="primary-btn" type="submit" disabled>Login</button>
-        <p class="foot-note">If you are new, switch to <button class="text-btn" type="button" data-switch="register">register</button> and create an account as teacher or student.</p>
+        <p class="foot-note" style="margin-top:14px;">New here? Switch to <button class="text-btn" type="button" data-switch="register">Register</button> and create your account.</p>
       </form>
 
+      <!-- Register Form -->
       <form id="registerForm" class="auth-form">
         <h2 id="registerTitle">Register after choosing a role</h2>
         <p class="muted" id="registerSubtitle">Create a teacher or student account with your basic details.</p>
@@ -106,7 +137,7 @@
         <input id="confirmPassword" type="password" placeholder="Confirm password" disabled>
 
         <button id="registerSubmit" class="primary-btn" type="submit" disabled>Register</button>
-        <p class="foot-note">Already registered? Switch to <button class="text-btn" type="button" data-switch="login">login</button>.</p>
+        <p class="foot-note" style="margin-top:14px;">Already registered? Switch to <button class="text-btn" type="button" data-switch="login">Login</button>.</p>
       </form>
 
       <div id="authMessage" class="message" aria-live="polite"></div>
@@ -114,5 +145,110 @@
   </main>
 
   <script src="script.js"></script>
+  <script>
+    /* ── Animated Canvas Background ─────────────────── */
+    (function initCanvas() {
+      const canvas = document.getElementById('bgCanvas');
+      const ctx = canvas.getContext('2d');
+      let W, H, particles = [], RAF;
+
+      function resize() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+
+      function Particle() {
+        this.x = Math.random() * W;
+        this.y = Math.random() * H;
+        this.r = Math.random() * 1.5 + 0.4;
+        this.vx = (Math.random() - 0.5) * 0.35;
+        this.vy = (Math.random() - 0.5) * 0.35;
+        this.alpha = Math.random() * 0.5 + 0.1;
+      }
+      Particle.prototype.update = function() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0) this.x = W;
+        if (this.x > W) this.x = 0;
+        if (this.y < 0) this.y = H;
+        if (this.y > H) this.y = 0;
+      };
+
+      function getThemeColors() {
+        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+        return {
+          particle: isDark ? 'rgba(129,140,248,' : 'rgba(79,70,229,',
+          line:     isDark ? 'rgba(129,140,248,' : 'rgba(79,70,229,',
+        };
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        const colors = getThemeColors();
+        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+
+        // Gradient background overlay (subtle)
+        const grad = ctx.createRadialGradient(W * 0.2, H * 0.2, 0, W * 0.2, H * 0.2, W * 0.8);
+        if (isDark) {
+          grad.addColorStop(0, 'rgba(129,140,248,0.04)');
+          grad.addColorStop(0.5, 'rgba(52,211,153,0.02)');
+          grad.addColorStop(1, 'rgba(0,0,0,0)');
+        } else {
+          grad.addColorStop(0, 'rgba(79,70,229,0.04)');
+          grad.addColorStop(0.5, 'rgba(5,150,105,0.02)');
+          grad.addColorStop(1, 'rgba(0,0,0,0)');
+        }
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        particles.forEach((p, i) => {
+          p.update();
+          // Draw particle
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = colors.particle + p.alpha + ')';
+          ctx.fill();
+
+          // Draw connection lines
+          for (let j = i + 1; j < particles.length; j++) {
+            const q = particles[j];
+            const dx = p.x - q.x, dy = p.y - q.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 110) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(q.x, q.y);
+              const lineAlpha = (1 - dist / 110) * 0.15;
+              ctx.strokeStyle = colors.line + lineAlpha + ')';
+              ctx.lineWidth = 0.8;
+              ctx.stroke();
+            }
+          }
+        });
+        RAF = requestAnimationFrame(draw);
+      }
+
+      window.addEventListener('resize', () => { cancelAnimationFrame(RAF); resize(); draw(); });
+      resize();
+      const count = Math.min(Math.floor((W * H) / 18000), 80);
+      for (let i = 0; i < count; i++) particles.push(new Particle());
+      draw();
+    })();
+
+    /* ── Theme Toggle ────────────────────────────────── */
+    (function initTheme() {
+      const btn = document.getElementById('themeToggle');
+      const saved = localStorage.getItem('attendance360Theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+      btn.textContent = saved === 'light' ? '🌙' : '☀️';
+
+      btn.addEventListener('click', () => {
+        const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('attendance360Theme', next);
+        btn.textContent = next === 'light' ? '🌙' : '☀️';
+      });
+    })();
+  </script>
 </body>
 </html>

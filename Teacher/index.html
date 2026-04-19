@@ -13,7 +13,7 @@
     }
     .spinner-bar {
       position: fixed; top: 0; left: 0; right: 0; height: 3px;
-      background: linear-gradient(90deg, #6366f1, #a855f7);
+      background: linear-gradient(90deg, #818cf8, #a855f7, #34d399);
       animation: spinnerSlide 1.2s ease-in-out infinite;
       z-index: 9999;
     }
@@ -21,11 +21,15 @@
       0%   { transform: translateX(-100%); }
       100% { transform: translateX(100%); }
     }
-    .lookup-hint { font-size: 0.8rem; color: var(--muted, #8899aa); margin-top: 2px; }
+    .lookup-hint { font-size: 0.8rem; color: var(--muted, #64748b); margin-top: 2px; }
     .field-group { margin-bottom: 12px; }
   </style>
 </head>
 <body>
+
+  <!-- Animated background canvas -->
+  <canvas id="bgCanvas"></canvas>
+
   <header>
     <div class="brand"><span class="dot"></span>Attendance360 · Teacher</div>
     <div class="header-actions">
@@ -40,11 +44,11 @@
       <div class="notification-shell">
         <button id="teacherNotificationToggle" class="notification-btn" type="button" aria-haspopup="true" aria-expanded="false">
           <span class="notification-icon">🔔</span>
-          <span class="notification-badge" id="teacherNotificationBadge">0</span>
+          <span class="notification-badge hidden" id="teacherNotificationBadge">0</span>
         </button>
         <div id="teacherNotificationPanel" class="notification-panel hidden">
-          <div class="section-head wrap">
-            <h3>Teacher Notifications</h3>
+          <div class="section-head wrap" style="margin-bottom:10px;">
+            <h3>Notifications</h3>
             <span class="chip" id="teacherNotificationStatus">0 unread</span>
           </div>
           <div id="teacherNotificationList" class="list compact-list"></div>
@@ -64,10 +68,12 @@
           <button id="logoutButton" class="profile-action danger-text" type="button">Logout</button>
         </div>
       </div>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle light/dark mode" title="Toggle theme">☀️</button>
     </div>
   </header>
 
   <main class="page">
+    <!-- HOME -->
     <section class="section active" id="home">
       <div class="hero card">
         <div>
@@ -79,27 +85,27 @@
             <button class="btn secondary" data-target="students">Add Students</button>
             <button class="btn secondary" data-target="feedback">View Feedback</button>
           </div>
-          <p class="muted" id="teacherSummary">Today: 3 classes · 82 students · Attendance window closes in 30 mins.</p>
-          <div class="list">
+          <p class="muted" id="teacherSummary" style="margin-top:14px;font-size:13px;"></p>
+          <div class="list" style="margin-top:14px;">
             <div class="item column">
-              <strong id="teacherName">Teacher Name</strong>
+              <strong id="teacherName" style="font-size:16px;">Teacher Name</strong>
               <p id="teacherUsernameText">Username: username</p>
               <p id="teacherCredentials">Teacher ID · Email</p>
-              <p id="teacherPhone" class="muted">Phone</p>
+              <p id="teacherPhone" class="muted"></p>
             </div>
           </div>
         </div>
-        <div class="card translucent">
+        <div class="card translucent" style="padding:22px;">
           <h2>Quick Stats</h2>
-          <div class="grid-2">
-            <div class="item column">
+          <div class="grid-2" style="margin-top:14px;">
+            <div class="item column" style="text-align:center;align-items:center;">
               <strong>Attendance</strong>
-              <p>Avg overall</p>
+              <p style="margin:2px 0 4px;font-size:12px;">Avg overall</p>
               <div class="stat-lg" id="quickStatAttendance">—</div>
             </div>
-            <div class="item column">
-              <strong>Assignments</strong>
-              <p>Files & quizzes shared</p>
+            <div class="item column" style="text-align:center;align-items:center;">
+              <strong>Files Shared</strong>
+              <p style="margin:2px 0 4px;font-size:12px;">Files &amp; quizzes</p>
               <div class="stat-lg" id="quickStatAssignments">—</div>
             </div>
           </div>
@@ -110,22 +116,24 @@
       </div>
     </section>
 
+    <!-- CLASSES -->
     <section class="section card" id="classes">
       <h2>Create / Manage Classes</h2>
       <label for="className">Class name</label>
       <input id="className" placeholder="e.g., Algorithms 301">
       <label for="classCode">Class code</label>
       <input id="classCode" placeholder="ALG-301">
-      <button class="btn" style="margin-top:12px;" onclick="createClass()">Add Class</button>
+      <button class="btn" style="margin-top:14px;" onclick="createClass()">Add Class</button>
       <div class="list" id="classList"></div>
     </section>
 
+    <!-- STUDENTS -->
     <section class="section card" id="students">
       <h2>Add Students to Class</h2>
       <p class="muted">Enter the student's registered ID to look them up and add them to a class. The name and phone are auto-filled from their account.</p>
 
       <div class="field-group">
-        <label for="studentId">Student Registered ID <span style="color:#a855f7">*</span></label>
+        <label for="studentId">Student Registered ID <span style="color:var(--primary)">*</span></label>
         <input id="studentId" placeholder="e.g., STD123456" autocomplete="off">
         <p class="lookup-hint">Blur this field to auto-lookup name and phone from the database.</p>
       </div>
@@ -133,30 +141,31 @@
       <div class="grid-2">
         <div class="field-group">
           <label for="studentName">Student Name (auto-filled)</label>
-          <input id="studentName" placeholder="Auto-filled after lookup" readonly style="opacity:0.7;cursor:not-allowed">
+          <input id="studentName" placeholder="Auto-filled after lookup" readonly style="opacity:0.6;cursor:not-allowed">
         </div>
         <div class="field-group">
           <label for="studentMobile">Phone (auto-filled)</label>
-          <input id="studentMobile" placeholder="Auto-filled after lookup" readonly style="opacity:0.7;cursor:not-allowed">
+          <input id="studentMobile" placeholder="Auto-filled after lookup" readonly style="opacity:0.6;cursor:not-allowed">
         </div>
       </div>
 
       <div class="field-group">
-        <label for="studentClass">Assign to Class <span style="color:#a855f7">*</span></label>
+        <label for="studentClass">Assign to Class <span style="color:var(--primary)">*</span></label>
         <select id="studentClass"></select>
       </div>
 
-      <button class="btn" style="margin-top:12px;" onclick="addStudent()">Add Student to Class</button>
+      <button class="btn" style="margin-top:14px;" onclick="addStudent()">Add Student to Class</button>
 
-      <div style="margin-top:24px;">
+      <div style="margin-top:26px;">
         <label for="studentSearch">Search enrolled students</label>
         <input id="studentSearch" placeholder="Search by name, ID, or mobile number">
       </div>
       <div class="list" id="studentList"></div>
     </section>
 
+    <!-- FILES -->
     <section class="section card" id="files">
-      <h2>Share Files & Quizzes</h2>
+      <h2>Share Files &amp; Quizzes</h2>
       <div class="grid-2">
         <div class="column">
           <label for="fileTitle">File or quiz title</label>
@@ -177,7 +186,7 @@
           <div id="filePicked" class="muted helper-copy">No file chosen</div>
           <label for="fileNotes">Notes / instructions</label>
           <textarea id="fileNotes" placeholder="Add timing, links, or instructions"></textarea>
-          <button class="btn" style="margin-top:12px;" onclick="shareFile()">Share</button>
+          <button class="btn" style="margin-top:14px;" onclick="shareFile()">Share</button>
         </div>
         <div>
           <h3>Shared items</h3>
@@ -186,6 +195,7 @@
       </div>
     </section>
 
+    <!-- ATTENDANCE -->
     <section class="section card" id="attendance">
       <div class="section-head wrap attendance-topbar">
         <div>
@@ -212,7 +222,7 @@
         <div class="attendance-stat-card">
           <span class="eyebrow">Editing rights</span>
           <strong>Change any day</strong>
-          <p>Choose a date, load the saved record, modify status, and save the corrected attendance.</p>
+          <p>Choose a date, load saved record, modify status, and save the corrected attendance.</p>
         </div>
       </div>
 
@@ -223,7 +233,7 @@
         <tbody id="attTable"></tbody>
       </table>
 
-      <div class="chips-row">
+      <div class="chips-row" style="margin-top:14px;">
         <span class="chip" id="presentCount">Present: 0</span>
         <span class="chip" id="absentCount">Absent: 0</span>
         <span class="chip" id="loadedAttendanceRecord">Fresh sheet</span>
@@ -232,7 +242,7 @@
 
       <div class="attendance-records-grid">
         <div class="attendance-record-card">
-          <div class="section-head wrap">
+          <div class="section-head wrap" style="margin-bottom:12px;">
             <h3>Student Attendance Record</h3>
             <span class="chip" id="attendanceSearchSummary">Search a student</span>
           </div>
@@ -240,7 +250,6 @@
           <input id="attendanceSearch" placeholder="e.g., Prithvi or BTET2501097">
           <div id="attendanceRecordResults" class="list"></div>
         </div>
-
       </div>
 
       <div class="attendance-history">
@@ -250,9 +259,9 @@
         </div>
         <div id="attendanceHistoryList" class="list"></div>
       </div>
-
     </section>
 
+    <!-- FEEDBACK -->
     <section class="section card" id="feedback">
       <div class="section-head wrap">
         <div>
@@ -264,7 +273,7 @@
 
       <div class="attendance-records-grid">
         <div class="attendance-record-card">
-          <div class="section-head wrap">
+          <div class="section-head wrap" style="margin-bottom:12px;">
             <h3>Feedback Form Broadcast</h3>
             <span class="chip" id="eligibleFeedbackCount">0 eligible</span>
           </div>
@@ -274,16 +283,16 @@
           <input id="feedbackTitle" type="text" placeholder="Class feedback form">
           <label for="feedbackPrompt">Questions / prompt</label>
           <textarea id="feedbackPrompt" placeholder="Ask about pace, teaching clarity, class support, assignments, and suggestions."></textarea>
-          <button id="sendFeedbackForms" class="btn" type="button">Send To Students Above 60%</button>
+          <button id="sendFeedbackForms" class="btn" type="button" style="margin-top:14px;">Send To Students Above 60%</button>
         </div>
 
         <div class="attendance-record-card">
-          <div class="section-head wrap">
+          <div class="section-head wrap" style="margin-bottom:12px;">
             <h3>Teacher Notifications</h3>
             <span class="chip">Bell icon</span>
           </div>
           <p class="feedback-broadcast-copy">Student feedback submissions and replies also appear in the notification bell at the top of the teacher page.</p>
-          <div class="item">
+          <div class="item" style="margin-top:10px;">
             <div>
               <strong>Unread updates</strong>
               <p>Use the top-right bell icon to quickly spot new feedback from students.</p>
@@ -305,6 +314,7 @@
 
   <footer>Attendance360 · Teacher Portal · Share, quiz, and capture attendance with ease.</footer>
 
+  <!-- Student Connect Modal -->
   <div id="studentConnectModal" class="modal hidden">
     <div class="modal-content wide-modal">
       <div class="modal-head">
@@ -318,14 +328,14 @@
 
       <div class="connect-grid">
         <div class="connect-panel">
-          <div class="section-head">
+          <div class="section-head" style="margin-bottom:12px;">
             <h4>Conversation</h4>
             <button id="callStudentButton" class="btn secondary" type="button">Call Student</button>
           </div>
           <div id="teacherChatThread" class="chat-thread"></div>
           <label for="teacherChatMessage">Send message</label>
           <textarea id="teacherChatMessage" placeholder="Type a message for this student"></textarea>
-          <button id="sendTeacherMessage" class="btn" type="button">Send Message</button>
+          <button id="sendTeacherMessage" class="btn" type="button" style="margin-top:10px;">Send Message</button>
         </div>
 
         <div class="connect-panel">
@@ -345,9 +355,9 @@
           <label for="personalShareUpload">Attach file</label>
           <input id="personalShareUpload" type="file" multiple>
           <div id="personalSharePicked" class="muted helper-copy">No file chosen</div>
-          <button id="sharePersonalUpdate" class="btn" type="button">Share With Student</button>
+          <button id="sharePersonalUpdate" class="btn" type="button" style="margin-top:10px;">Share With Student</button>
 
-          <div class="section-head top-gap">
+          <div class="section-head top-gap" style="margin-top:16px;margin-bottom:8px;">
             <h4>Shared With This Student</h4>
             <span class="chip" id="studentResourceCount">0 items</span>
           </div>
@@ -357,6 +367,7 @@
     </div>
   </div>
 
+  <!-- Edit Profile Modal -->
   <div id="editProfileModal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-head">
@@ -385,5 +396,85 @@
   </div>
 
   <script src="script.js"></script>
+  <script>
+    /* ── Animated Canvas Background ─────────────────── */
+    (function initCanvas() {
+      const canvas = document.getElementById('bgCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let W, H, particles = [], RAF;
+
+      function resize() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+
+      function Particle() {
+        this.x = Math.random() * W;
+        this.y = Math.random() * H;
+        this.r = Math.random() * 1.4 + 0.3;
+        this.vx = (Math.random() - 0.5) * 0.28;
+        this.vy = (Math.random() - 0.5) * 0.28;
+        this.alpha = Math.random() * 0.45 + 0.08;
+        this.hue = Math.random() > 0.5 ? 238 : 160; /* indigo or emerald */
+      }
+      Particle.prototype.update = function() {
+        this.x += this.vx; this.y += this.vy;
+        if (this.x < 0) this.x = W; if (this.x > W) this.x = 0;
+        if (this.y < 0) this.y = H; if (this.y > H) this.y = 0;
+      };
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+
+        particles.forEach((p, i) => {
+          p.update();
+          const pAlpha = isDark ? p.alpha : p.alpha * 0.6;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue},80%,70%,${pAlpha})`;
+          ctx.fill();
+
+          for (let j = i + 1; j < particles.length; j++) {
+            const q = particles[j];
+            const dx = p.x - q.x, dy = p.y - q.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 100) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+              const lAlpha = (1 - dist/100) * (isDark ? 0.11 : 0.07);
+              ctx.strokeStyle = `hsla(${p.hue},70%,65%,${lAlpha})`;
+              ctx.lineWidth = 0.7;
+              ctx.stroke();
+            }
+          }
+        });
+        RAF = requestAnimationFrame(draw);
+      }
+
+      window.addEventListener('resize', () => { cancelAnimationFrame(RAF); resize(); draw(); });
+      resize();
+      const count = Math.min(Math.floor((W * H) / 20000), 70);
+      for (let i = 0; i < count; i++) particles.push(new Particle());
+      draw();
+    })();
+
+    /* ── Theme Toggle ────────────────────────────────── */
+    (function initThemeToggle() {
+      const btn = document.getElementById('themeToggle');
+      if (!btn) return;
+      // current theme was already applied by script.js IIFE
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      btn.textContent = current === 'light' ? '🌙' : '☀️';
+
+      btn.addEventListener('click', () => {
+        const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('attendance360Theme', next);
+        btn.textContent = next === 'light' ? '🌙' : '☀️';
+      });
+    })();
+  </script>
 </body>
 </html>

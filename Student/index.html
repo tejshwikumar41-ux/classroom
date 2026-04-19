@@ -16,30 +16,51 @@
       100% { transform: translateX(100%); }
     }
     .chat-btn {
-      background: rgba(99,102,241,0.15);
-      border: 1px solid rgba(99,102,241,0.4);
-      color: #a5b4fc;
+      border: 1px solid rgba(129,140,248,0.2);
+      background: var(--primary-soft);
+      color: var(--primary-2);
       border-radius: 8px;
-      padding: 6px 14px;
+      padding: 7px 14px;
       cursor: pointer;
-      font-size: 0.82rem;
-      transition: background 0.2s;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+      display: inline-flex; align-items: center; gap: 5px;
     }
-    .chat-btn:hover { background: rgba(99,102,241,0.3); }
+    .chat-btn:hover { background: rgba(129,140,248,0.18); transform: translateY(-1px); }
     .messages-header {
       display: flex; align-items: center; gap: 12px;
-      padding: 14px 16px;
-      background: rgba(255,255,255,0.04);
-      border-bottom: 1px solid rgba(255,255,255,0.07);
+      padding: 14px 18px;
+      background: var(--card);
+      border: 1px solid var(--card-border); border-bottom: none;
       border-radius: 12px 12px 0 0;
     }
-    .messages-header strong { font-size: 1rem; }
-    .messages-header p { margin: 0; font-size: 0.8rem; color: var(--muted, #8899aa); }
-    .chip.present { background: rgba(22,163,74,0.2); color: #4ade80; border-color: rgba(74,222,128,0.3); }
-    .chip.absent  { background: rgba(220,38,38,0.2);  color: #f87171; border-color: rgba(248,113,113,0.3); }
+    .messages-header strong { font-size: 14px; font-weight: 600; }
+    .messages-header p { margin: 0; font-size: 12px; color: var(--muted); }
+    .chip.present { background: rgba(52,211,153,0.12); color: var(--success,#34d399); border-color: rgba(52,211,153,0.25); }
+    .chip.absent  { background: rgba(248,113,113,0.12); color: var(--danger,#f87171);  border-color: rgba(248,113,113,0.25); }
+
+    /* Stats accent */
+    #attendanceOverallPercent,
+    #attendancePresentDays,
+    #attendanceAbsentDays {
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 36px;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--primary-2,#a5b4fc) 0%, var(--accent,#34d399) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Animated background canvas -->
+  <canvas id="bgCanvas"></canvas>
+
   <header>
     <div class="brand"><span class="dot"></span>Attendance360 · Student</div>
     <div class="header-actions">
@@ -54,18 +75,19 @@
       <div class="notification-shell">
         <button id="notificationToggle" class="notification-btn" type="button" aria-haspopup="true" aria-expanded="false">
           <span class="notification-icon">🔔</span>
-          <span class="notification-badge" id="notificationBadge">0</span>
+          <span class="notification-badge hidden" id="notificationBadge">0</span>
         </button>
         <div id="notificationPanel" class="notification-panel hidden">
-          <div class="section-head wrap">
+          <div class="section-head wrap" style="margin-bottom:10px;">
             <h3>Notifications</h3>
             <span class="chip" id="notificationPanelStatus">0 unread</span>
           </div>
           <div id="notificationList" class="list compact-list"></div>
         </div>
       </div>
-      <button id="logoutBtn" class="btn secondary" style="margin-left:6px;color:#ff7878;border-color:rgba(255,120,120,0.4);background:rgba(255,120,120,0.1);display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:10px 16px;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 22H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h5"></path><polyline points="17 16 21 12 17 8"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle light/dark mode" title="Toggle theme">☀️</button>
+      <button id="logoutBtn" class="logout-btn" type="button">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 22H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h5"></path><polyline points="17 16 21 12 17 8"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         Logout
       </button>
     </div>
@@ -86,39 +108,39 @@
             <button class="btn secondary" data-target="attendance">Attendance</button>
             <button class="btn secondary" data-target="files">Files</button>
           </div>
-          <div class="list">
+          <div class="list" style="margin-top:20px;">
             <div class="item column">
-              <strong id="studentNameCard">Student Name</strong>
+              <strong id="studentNameCard" style="font-size:16px;">Student Name</strong>
               <p id="studentCredentials">Student ID · Email</p>
-              <p id="studentPhone" class="muted">Phone</p>
+              <p id="studentPhone" class="muted"></p>
             </div>
           </div>
         </div>
-        <div class="card translucent">
+        <div class="card translucent" style="padding:22px;">
           <h2>Quick Jump</h2>
-          <div class="grid-3">
-            <div class="item inline">
+          <div class="grid-3" style="margin-top:14px;">
+            <div class="item inline" style="padding:14px;">
               <div class="icon-bubble">C</div>
-              <div>
+              <div style="margin-left:10px;">
                 <strong>Classes</strong>
-                <p>Your enrolled courses</p>
-                <button class="btn secondary" data-target="classes">Open</button>
+                <p>Enrolled courses</p>
+                <button class="btn secondary" style="margin-top:6px;padding:6px 12px;font-size:12px;" data-target="classes">Open</button>
               </div>
             </div>
-            <div class="item inline">
+            <div class="item inline" style="padding:14px;">
               <div class="icon-bubble alt">A</div>
-              <div>
+              <div style="margin-left:10px;">
                 <strong>Attendance</strong>
-                <p>Track day-by-day</p>
-                <button class="btn secondary" data-target="attendance">Open</button>
+                <p>Day-by-day</p>
+                <button class="btn secondary" style="margin-top:6px;padding:6px 12px;font-size:12px;" data-target="attendance">Open</button>
               </div>
             </div>
-            <div class="item inline">
+            <div class="item inline" style="padding:14px;">
               <div class="icon-bubble">M</div>
-              <div>
+              <div style="margin-left:10px;">
                 <strong>Messages</strong>
-                <p>Talk to your teacher</p>
-                <button class="btn secondary" data-target="messages">Open</button>
+                <p>Talk to teacher</p>
+                <button class="btn secondary" style="margin-top:6px;padding:6px 12px;font-size:12px;" data-target="messages">Open</button>
               </div>
             </div>
           </div>
@@ -143,7 +165,7 @@
       <div class="section-head wrap">
         <div>
           <h2>Messages</h2>
-          <p class="muted">Chat with your teachers. Open a course from <strong>My Classes</strong> → tap "💬 Message Teacher" to start, or your last conversation loads automatically.</p>
+          <p class="muted">Chat with your teachers. Open a course from <strong>My Classes</strong> → tap "💬 Message Teacher" to start.</p>
         </div>
         <span class="chip" id="studentConversationStatus">No active chat</span>
       </div>
@@ -159,7 +181,7 @@
 
       <label for="studentReplyMessage">Your message</label>
       <textarea id="studentReplyMessage" placeholder="Type your message to the teacher…"></textarea>
-      <button id="sendStudentReply" class="btn" type="button">Send Message</button>
+      <button id="sendStudentReply" class="btn" type="button" style="margin-top:10px;">Send Message</button>
     </section>
 
     <!-- ATTENDANCE -->
@@ -167,26 +189,26 @@
       <div class="section-head wrap">
         <h2>Attendance</h2>
         <div class="month-nav">
-          <button class="nav-btn" id="prevMonth" aria-label="Previous month">&lt;</button>
+          <button class="nav-btn" id="prevMonth" aria-label="Previous month">&#8249;</button>
           <span class="chip" id="monthLabel">Month view</span>
-          <button class="nav-btn" id="nextMonth" aria-label="Next month">&gt;</button>
+          <button class="nav-btn" id="nextMonth" aria-label="Next month">&#8250;</button>
         </div>
       </div>
-      <div class="grid-3 attendance-summary-grid">
-        <div class="item column">
-          <strong id="attendanceOverallPercent">0%</strong>
-          <p>Overall attendance</p>
+      <div class="grid-3 attendance-summary-grid" style="margin-top:18px;">
+        <div class="item column" style="text-align:center;align-items:center;">
+          <span id="attendanceOverallPercent" style="font-family:'DM Serif Display',Georgia,serif;font-size:36px;font-weight:400;background:linear-gradient(135deg,var(--primary-2),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">0%</span>
+          <p style="margin:4px 0 0;">Overall attendance</p>
         </div>
-        <div class="item column">
-          <strong id="attendancePresentDays">0</strong>
-          <p>Present days</p>
+        <div class="item column" style="text-align:center;align-items:center;">
+          <span id="attendancePresentDays" style="font-family:'DM Serif Display',Georgia,serif;font-size:36px;font-weight:400;background:linear-gradient(135deg,var(--accent),#6ee7b7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">0</span>
+          <p style="margin:4px 0 0;">Present days</p>
         </div>
-        <div class="item column">
-          <strong id="attendanceAbsentDays">0</strong>
-          <p>Absent days</p>
+        <div class="item column" style="text-align:center;align-items:center;">
+          <span id="attendanceAbsentDays" style="font-family:'DM Serif Display',Georgia,serif;font-size:36px;font-weight:400;background:linear-gradient(135deg,var(--danger),#fb7185);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">0</span>
+          <p style="margin:4px 0 0;">Absent days</p>
         </div>
       </div>
-      <p class="muted">Green = present · Red = absent · Neutral = no saved record.</p>
+      <p class="muted" style="margin-top:4px;font-size:12px;">Green = present · Red = absent · Neutral = no saved record.</p>
       <div id="calendarDays" class="calendar"></div>
       <div class="legend">
         <span><span class="legend-swatch present"></span> Present</span>
@@ -194,7 +216,7 @@
         <span><span class="legend-swatch neutral"></span> No record</span>
       </div>
       <div class="attendance-day-log">
-        <div class="section-head wrap">
+        <div class="section-head wrap" style="margin-top:20px;">
           <h3>Detailed Attendance Log</h3>
           <span class="chip" id="attendanceLogCount">0 entries</span>
         </div>
@@ -241,7 +263,7 @@
         <h2>Academic Calendar</h2>
         <span class="chip">Even Sem · Jan–Jun 2026</span>
       </div>
-      <div class="list">
+      <div class="list" style="margin-top:16px;">
         <div class="item column"><strong>Online Semester Registration</strong><p>5 Jan 2026</p></div>
         <div class="item column"><strong>Teaching Starts</strong><p>8 Jan 2026</p></div>
         <div class="item column"><strong>Minor-I (Theory Courses)</strong><p>16–20 Feb 2026</p></div>
@@ -263,12 +285,90 @@
           <p class="chip">PDF Reader</p>
           <h3 id="pdfTitle">Document</h3>
         </div>
-        <button id="closePdfReader" class="nav-btn" aria-label="Close PDF reader">×</button>
+        <button id="closePdfReader" class="nav-btn" aria-label="Close PDF reader" style="width:36px;height:36px;font-size:18px;">×</button>
       </div>
       <iframe id="pdfFrame" title="PDF reader"></iframe>
     </div>
   </div>
 
   <script src="script.js"></script>
+  <script>
+    /* ── Animated Canvas Background ─────────────────── */
+    (function initCanvas() {
+      const canvas = document.getElementById('bgCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let W, H, particles = [], RAF;
+
+      function resize() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+
+      function Particle() {
+        this.x = Math.random() * W;
+        this.y = Math.random() * H;
+        this.r = Math.random() * 1.4 + 0.3;
+        this.vx = (Math.random() - 0.5) * 0.28;
+        this.vy = (Math.random() - 0.5) * 0.28;
+        this.alpha = Math.random() * 0.45 + 0.08;
+      }
+      Particle.prototype.update = function() {
+        this.x += this.vx; this.y += this.vy;
+        if (this.x < 0) this.x = W; if (this.x > W) this.x = 0;
+        if (this.y < 0) this.y = H; if (this.y > H) this.y = 0;
+      };
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+        const pColor = isDark ? 'rgba(129,140,248,' : 'rgba(79,70,229,';
+        const lColor = isDark ? 'rgba(129,140,248,' : 'rgba(79,70,229,';
+
+        particles.forEach((p, i) => {
+          p.update();
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = pColor + p.alpha + ')';
+          ctx.fill();
+          for (let j = i + 1; j < particles.length; j++) {
+            const q = particles[j];
+            const dx = p.x - q.x, dy = p.y - q.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 100) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+              ctx.strokeStyle = lColor + ((1 - dist/100) * 0.12) + ')';
+              ctx.lineWidth = 0.7;
+              ctx.stroke();
+            }
+          }
+        });
+        RAF = requestAnimationFrame(draw);
+      }
+
+      window.addEventListener('resize', () => { cancelAnimationFrame(RAF); resize(); draw(); });
+      resize();
+      const count = Math.min(Math.floor((W * H) / 20000), 70);
+      for (let i = 0; i < count; i++) particles.push(new Particle());
+      draw();
+    })();
+
+    /* ── Theme Toggle ────────────────────────────────── */
+    (function initTheme() {
+      const btn = document.getElementById('themeToggle');
+      if (!btn) return;
+      const saved = localStorage.getItem('attendance360Theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+      btn.textContent = saved === 'light' ? '🌙' : '☀️';
+
+      btn.addEventListener('click', () => {
+        const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('attendance360Theme', next);
+        btn.textContent = next === 'light' ? '🌙' : '☀️';
+      });
+    })();
+  </script>
 </body>
 </html>
