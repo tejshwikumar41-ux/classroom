@@ -43,6 +43,7 @@ const pdfReader = document.getElementById("pdfReader");
 const pdfFrame = document.getElementById("pdfFrame");
 const pdfTitle = document.getElementById("pdfTitle");
 const closePdfReader = document.getElementById("closePdfReader");
+const logoutBtn = document.getElementById("logoutBtn");
 const currentUser = getCurrentUser();
 
 let currentMonth = new Date().getMonth();
@@ -733,5 +734,13 @@ renderNotifications();
 renderAttendance();
 showSection("home");
 applyStudentProfile(currentUser);
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem('attendance360Token');
+    window.location.href = "../Login/index.html";
+  });
+}
 
 initializeBackend();
