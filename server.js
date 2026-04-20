@@ -379,7 +379,7 @@ app.post('/api/files', authenticateToken, async (req, res) => {
     if (req.user.role !== 'teacher') {
       return res.status(403).json({ error: 'Only teachers can share files' });
     }
-    const { title, type, notes, classId, fileUrl } = req.body;
+    const { title, type, notes, classId, fileUrl, fileName } = req.body;
     if (!title || !type) return res.status(400).json({ error: 'Title and type are required' });
 
     const file = await prisma.file.create({
@@ -389,7 +389,8 @@ app.post('/api/files', authenticateToken, async (req, res) => {
         notes: notes || null,
         classId: classId ? parseInt(classId) : null,
         teacherId: req.user.id,
-        fileUrl: fileUrl || null
+        fileUrl: fileUrl || null,
+        fileName: fileName || null
       }
     });
     const fullFile = await prisma.file.findUnique({

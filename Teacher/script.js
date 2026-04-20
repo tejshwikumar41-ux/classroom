@@ -643,18 +643,26 @@ async function shareFile() {
 
   try {
     showSpinner(true);
+
+    // Read file(s) FIRST — before the API call — so we can include them in the payload
+    const attachments = upload.files?.length
+      ? await Promise.all(Array.from(upload.files).map(readFileAsDataUrl))
+      : [];
+
+    // Build the body: send fileUrl (Base64 dataUrl) and fileName to backend
+    const firstFile = attachments[0] || null;
     const res = await fetch(API_BASE + "/api/files", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
-      body: JSON.stringify({ title, type, notes, classId: cls.id })
+      body: JSON.stringify({
+        title, type, notes, classId: cls.id,
+        fileUrl:  firstFile ? firstFile.dataUrl : null,
+        fileName: firstFile ? firstFile.name    : null
+      })
     });
     const data = await res.json();
     showSpinner(false);
     if (!res.ok) { toast(data.error || "Failed to share file", "error"); return; }
-
-    const attachments = upload.files?.length
-      ? await Promise.all(Array.from(upload.files).map(readFileAsDataUrl))
-      : [];
 
     const entry = {
       id: data.id, title, type,

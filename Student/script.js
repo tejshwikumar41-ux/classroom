@@ -775,17 +775,23 @@ async function initializeBackend() {
 
     if (filesRes.ok) {
       const data = await filesRes.json();
-      sharedFiles.splice(0, sharedFiles.length, ...data.map(f => ({
-        id:       f.id,
-        title:    f.title,
-        type:     f.type,
-        notes:    f.notes,
-        class:    f.class?.name || "",
-        classCode:f.class?.code || "",
-        teacher:  f.teacher || null,
-        files:    f.fileUrl || "No attachment",
-        attachments: [] // file content not stored on server side yet
-      })));
+      sharedFiles.splice(0, sharedFiles.length, ...data.map(f => {
+        // Reconstruct the attachment from fileUrl (Base64 dataUrl) + fileName saved by teacher
+        const attachments = f.fileUrl
+          ? [{ name: f.fileName || "attachment", dataUrl: f.fileUrl, mimeType: f.type || "application/octet-stream" }]
+          : [];
+        return {
+          id:          f.id,
+          title:       f.title,
+          type:        f.type,
+          notes:       f.notes,
+          class:       f.class?.name || "",
+          classCode:   f.class?.code || "",
+          teacher:     f.teacher || null,
+          files:       attachments.length ? attachments.map(a => a.name).join(", ") : "No attachment",
+          attachments
+        };
+      }));
       renderStudentFiles();
     }
 

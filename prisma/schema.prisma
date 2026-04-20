@@ -62,7 +62,8 @@ model File {
   notes       String?
   classId     Int?
   teacherId   Int
-  fileUrl     String?  // Can be used if files are actually uploaded, otherwise just metadata for now.
+  fileUrl     String?  @db.Text  // Base64 dataUrl of the uploaded file
+  fileName    String?             // Original filename (e.g. DS Lab (2).pdf)
   createdAt   DateTime @default(now())
 
   class       Class?   @relation(fields: [classId], references: [id])
