@@ -251,18 +251,46 @@ function isPdfFile(file) {
   const mime = (file?.mimeType || "").toLowerCase();
   return mime.includes("pdf") || name.endsWith(".pdf");
 }
+
+// Convert a Base64 dataUrl → Blob Object URL for reliable open/download
+function dataUrlToBlobUrl(dataUrl) {
+  try {
+    const [header, base64] = dataUrl.split(",");
+    const mimeMatch = header.match(/:(.*?);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+    const byteString = atob(base64);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+    const blob = new Blob([ab], { type: mimeType });
+    return URL.createObjectURL(blob);
+  } catch { return null; }
+}
+
 function downloadSharedFile(file) {
   if (!file?.dataUrl) return toast("No download available.", "error");
+  const blobUrl = dataUrlToBlobUrl(file.dataUrl);
   const link = document.createElement("a");
-  link.href = file.dataUrl; link.download = file.name || "file";
+  link.href = blobUrl || file.dataUrl;
+  link.download = file.name || "file";
   document.body.appendChild(link); link.click(); link.remove();
+  if (blobUrl) setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
 }
+
 function openSharedFile(file) {
   if (!file?.dataUrl) return toast("File cannot be opened.", "error");
-  if (isPdfFile(file)) { pdfTitle.textContent = file.name; pdfFrame.src = file.dataUrl; pdfReader.classList.remove("hidden"); return; }
-  window.open(file.dataUrl, "_blank", "noopener,noreferrer");
+  // Convert to Blob URL and open in new tab — browser/OS picks the right viewer
+  const blobUrl = dataUrlToBlobUrl(file.dataUrl);
+  if (blobUrl) {
+    window.open(blobUrl, "_blank", "noopener,noreferrer");
+    // Revoke after a delay to allow the new tab to load it
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  } else {
+    // Fallback: open raw dataUrl
+    window.open(file.dataUrl, "_blank", "noopener,noreferrer");
+  }
 }
-function hidePdfReader() { pdfReader.classList.add("hidden"); pdfFrame.src = ""; }
+function hidePdfReader() { pdfReader?.classList.add("hidden"); if (pdfFrame) pdfFrame.src = ""; }
 
 function renderStudentFiles() {
   if (!studentFileList) return;
